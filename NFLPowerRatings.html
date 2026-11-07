@@ -71,7 +71,7 @@
         .view-nav a { color:var(--muted); text-decoration:none; padding:16px 0; border-bottom:2px solid transparent; font-weight:600; }
         .view-nav a[aria-current] { color:var(--accent); border-color:var(--accent); }
         .view-nav a:hover { color:var(--text); }
-        .control-panel { display:grid; grid-template-columns:1fr auto; align-items:end; gap:16px; padding:18px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+        .control-panel { display:grid; grid-template-columns:1fr; align-items:end; gap:16px; padding:18px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
         .controls-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
         .form-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
         .form-field__label { font-size:13px; font-weight:600; color:var(--muted); }
@@ -80,15 +80,13 @@
         button { cursor:pointer; transition:background .15s,color .15s; }
         button:active { transform:translateY(1px); }
         button:disabled { opacity:.55; cursor:wait; }
-        .btn-calculate { height:44px; border:0; border-radius:5px; background:var(--accent); color:#1e211f; font-weight:700; padding:0 22px; display:flex; align-items:center; justify-content:center; gap:8px; }
-        .btn-calculate:hover { background:#f1c889; }
-        .btn-calculate__spinner { display:none; width:16px; height:16px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
-        .btn-calculate--loading .btn-calculate__spinner { display:block; }
-        @keyframes spin { to { transform:rotate(360deg); } }
         .status-message { display:none; margin:14px 0; padding:10px 14px; border-left:3px solid var(--accent); background:var(--surface); }
         .status-message--visible { display:block; }
         .status-message--error { border-color:var(--negative); color:var(--negative); }
         .status-message--success { border-color:var(--positive); }
+        .week-availability { margin:0; color:var(--muted); font-size:14px; }
+        .range-adjustment { margin:0; font-size:14px; color:var(--accent); }
+        .range-adjustment:empty { display:none; }
         .empty-state { color:var(--muted); padding:24px 0; margin:0; }
         .results-section { display:none; margin-top:24px; }
         .results-section--visible { display:block; }
@@ -156,8 +154,6 @@
         .skip-link:focus { top:8px; }
         @media(max-width:800px) {
             .container { padding:18px 20px; }
-            .control-panel { grid-template-columns:1fr; }
-            .btn-calculate { width:100%; }
             .team-cell__abbr { display:none; }
             .scroll-hint { display:block; margin:0 0 10px; }
         }
@@ -168,7 +164,7 @@
             .view-nav { gap:24px; margin-top:6px; }
             .view-nav a { padding:12px 0; font-size:15px; }
             .control-panel { padding:14px; }
-            .controls-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+            .controls-grid { grid-template-columns:1fr; gap:12px; }
             .controls-grid .form-field:first-child { grid-column:1/-1; }
             #matchup-view .controls-grid { grid-template-columns:1fr; }
             .results-header { align-items:baseline; flex-wrap:wrap; }
@@ -195,7 +191,7 @@
         </header>
 
         <nav class="view-nav" aria-label="App views"><a href="#ratings" id="ratings-link" aria-current="page">Power ratings</a><a href="#matchup" id="matchup-link">Matchup calculator</a></nav></div>
-        <p id="view-message" hidden><a href="#ratings">Calculate power ratings</a> to use the matchup calculator.</p>
+        <p id="view-message" hidden>Ratings are not available for this selection. <a href="#ratings">Review the season and week range</a>.</p>
         <!-- Control Panel: Season and Week Selection -->
         <section class="control-panel">
 
@@ -236,18 +232,14 @@
                     </select>
                 </div>
             </div>
-
-            <!-- Calculate Button -->
-            <button id="calculate-btn" class="btn-calculate" type="button">
-                <span class="btn-calculate__spinner"></span>
-                <span class="btn-calculate__text">Calculate ratings</span>
-            </button>
+            <p id="week-availability" class="week-availability" role="status" aria-live="polite">Loading game schedule…</p>
+            <p id="range-adjustment" class="range-adjustment" role="status" aria-live="polite"></p>
         </section>
 
         <!-- Status Message Display -->
         <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
 
-        <p id="empty-state" class="empty-state">Choose a season and week range, then calculate ratings.</p>
+        <p id="empty-state" class="empty-state">Ratings update automatically when you change the season or week range.</p>
         <!-- Results Section: Power Ratings Table -->
         <section id="results-section" class="results-section">
             <div class="results-header">
@@ -463,7 +455,6 @@
             seasonSelect: document.getElementById('season-select'),
             startWeekSelect: document.getElementById('start-week-select'),
             endWeekSelect: document.getElementById('end-week-select'),
-            calculateBtn: document.getElementById('calculate-btn'),
             statusMessage: document.getElementById('status-message'),
             resultsSection: document.getElementById('results-section'),
             resultsBody: document.getElementById('results-body'),
@@ -482,8 +473,11 @@
          * Stores parsed game data and available seasons.
          */
         const appState = {
-            /** @type {Array<Object>} Parsed game records from parquet file */
+            /** @type {Array<Object>} Recorded game results used for ratings */
             gamesData: [],
+            schedule: [],
+            completeSchedule: false,
+            loadingData: false,
             /** @type {Set<number>} Set of available seasons in the dataset */
             availableSeasons: new Set(),
             /** @type {boolean} Whether data has been loaded */
@@ -557,22 +551,14 @@
             elements.statusMessage.textContent = ''; 
         }
 
-        /**
-         * Sets the loading state of the calculate button.
-         * Disables button and shows spinner during processing.
-         * 
-         * @param {boolean} isLoading - Whether the application is in loading state
-         */
-        function setButtonLoading(isLoading) {
-            const { calculateBtn } = elements;
-
-            if (isLoading) {
-                calculateBtn.classList.add('btn-calculate--loading');
-                calculateBtn.disabled = true;
-            } else {
-                calculateBtn.classList.remove('btn-calculate--loading');
-                calculateBtn.disabled = false;
+        function setDataLoading(loading) {
+            appState.loadingData = loading;
+            for (const select of [elements.seasonSelect, elements.startWeekSelect, elements.endWeekSelect]) {
+                select.disabled = loading || !appState.dataLoaded;
             }
+            document.getElementById('refresh-data').disabled = loading;
+            document.getElementById('import-data').disabled = loading;
+            if (!loading && appState.dataLoaded) updateWeekAvailability();
         }
 
         // =========================================================================
@@ -1104,6 +1090,7 @@
             if (cached && typeof cached.csv === 'string') {
                 const games = parseCSV(cached.csv);
                 if (games.length) {
+                    retainSchedule(cached.csv, cached.source);
                     describeData(games, cached.source, cached.savedAt, true);
                     return games;
                 }
@@ -1135,7 +1122,7 @@
 
             // Check if it parses to a valid number
             const numValue = Number(value);
-            if (Number.isNaN(numValue)) {
+            if (!Number.isFinite(numValue) || !Number.isInteger(numValue) || numValue < 0) {
                 return false;
             }
 
@@ -1149,7 +1136,7 @@
          * @param {string} csvText - Raw CSV content
          * @returns {Array<Object>} Array of game objects
          */
-        function parseCSV(csvText) {
+        function parseCSV(csvText, includeUnplayed = false) {
             const lines = csvText.split('\n');
 
             if (lines.length < 2) {
@@ -1175,6 +1162,7 @@
                 homeScore: columnMap.home_score,
                 awayScore: columnMap.away_score,
                 location: columnMap.location,
+                gameday: columnMap.gameday,
             };
 
             // Validate required columns exist
@@ -1198,21 +1186,15 @@
                 const homeScoreRaw = values[indices.homeScore];
                 const awayScoreRaw = values[indices.awayScore];
 
-                // Skip games with empty, NA, or missing scores (unplayed games)
-                // Note: 0 is a valid score (shutout), so we only skip truly empty values
-                if (!isValidScore(homeScoreRaw) || !isValidScore(awayScoreRaw)) {
-                    continue;
-                }
-
-                const homeScore = Number(homeScoreRaw);
-                const awayScore = Number(awayScoreRaw);
                 const season = Number(values[indices.season]);
                 const week = Number(values[indices.week]);
-
-                // Only include completed games with valid numeric scores
-                if (Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
-                    continue;
-                }
+                if (!Number.isInteger(season) || season < 1900 || !Number.isInteger(week) || week < 1 || week > 22) continue;
+                const gameday = indices.gameday !== undefined ? values[indices.gameday] : '';
+                const future = /^\d{4}-\d{2}-\d{2}$/.test(gameday) && gameday > new Date().toISOString().slice(0, 10);
+                const hasResult = !future && isValidScore(homeScoreRaw) && isValidScore(awayScoreRaw);
+                if (!includeUnplayed && !hasResult) continue;
+                const homeScore = hasResult ? Number(homeScoreRaw) : null;
+                const awayScore = hasResult ? Number(awayScoreRaw) : null;
 
                 games.push({
                     game_id: indices.gameId !== undefined ? values[indices.gameId] : `game_${i}`,
@@ -1220,6 +1202,7 @@
                     week,
                     home_team: values[indices.homeTeam],
                     away_team: values[indices.awayTeam],
+                    gameday,
                     home_score: homeScore,
                     away_score: awayScore,
                     location: indices.location !== undefined ? values[indices.location] : 'Home',
@@ -1563,108 +1546,53 @@
         // EVENT HANDLERS
         // =========================================================================
 
-        /**
-         * Handles the calculate button click event.
-         * Orchestrates the full calculation pipeline:
-         * 1. Get user selections
-         * 2. Filter games
-         * 3. Build design matrix
-         * 4. Perform OLS regression
-         * 5. Calculate and display power ratings
-         */
-        async function handleCalculateClick() {
-            try {
-                setButtonLoading(true);
+        let calculationVersion = 0;
+        async function calculateRatings() {
+            const version = ++calculationVersion;
+            if (!appState.dataLoaded) return;
+            invalidateResults();
+            if (!latestSeasonWeek()) {
                 hideStatus();
-
-                // Get user selections
-                const season = parseInt(elements.seasonSelect.value, 10);
-                const startWeek = parseInt(elements.startWeekSelect.value, 10);
-                const endWeek = parseInt(elements.endWeekSelect.value, 10);
-
-                // Validate week range
-                if (startWeek > endWeek) {
-                    showStatus('Start week must be less than or equal to end week.', 'error');
-                    setButtonLoading(false);
-                    return;
-                }
-
-                showStatus('Filtering games...', 'loading');
-
-                // Filter games based on selections
+                elements.resultsSection.setAttribute('aria-busy', 'false');
+                return;
+            }
+            const season = Number(elements.seasonSelect.value);
+            const startWeek = Number(elements.startWeekSelect.value);
+            const endWeek = Number(elements.endWeekSelect.value);
+            elements.resultsSection.setAttribute('aria-busy', 'true');
+            showStatus('Updating ratings…', 'loading');
+            try {
+                // Coalesce quick changes and let the browser paint loading feedback.
+                await new Promise(resolve => setTimeout(resolve, 120));
+                if (version !== calculationVersion) return;
                 const filteredGames = filterGames(appState.gamesData, season, startWeek, endWeek);
-
-                // Check if we have enough games
                 if (filteredGames.length < NUM_TEAMS) {
-                    showStatus(
-                        `Only ${filteredGames.length} completed games in this range. Select more weeks; at least ${NUM_TEAMS} games are needed.`,
-                        'error',
-                    );
-                    setButtonLoading(false);
+                    showStatus(`Only ${filteredGames.length} recorded ${filteredGames.length === 1 ? 'game' : 'games'} in this range. Select more weeks; at least ${NUM_TEAMS} games are needed.`, 'error');
                     return;
                 }
-
-                showStatus(`Analyzing ${filteredGames.length} games...`, 'loading');
-
-                // Allow UI to update before heavy computation
-                await new Promise((resolve) => { setTimeout(resolve, 50); });
-
-                // Build design matrix and target vector
                 const { X, y, validGames } = buildDesignMatrix(filteredGames);
-
-                // Check if we have enough valid games after filtering
                 if (validGames < NUM_TEAMS) {
-                    showStatus(
-                        `Not enough valid games (${validGames}). Need at least ${NUM_TEAMS} games for analysis.`,
-                        'error',
-                    );
-                    setButtonLoading(false);
+                    showStatus(`Only ${validGames} usable games in this range. Select more weeks; at least ${NUM_TEAMS} games are needed.`, 'error');
                     return;
                 }
-
-                showStatus('Performing OLS regression...', 'loading');
-
-                // Allow UI to update
-                await new Promise((resolve) => { setTimeout(resolve, 50); });
-
-                // Perform OLS regression
-                const beta = performOLSRegression(X, y);
-
-                // Calculate final power ratings with team records
-                const results = calculatePowerRatings(beta, filteredGames);
-
+                const results = calculatePowerRatings(performOLSRegression(X, y), filteredGames);
                 calculateMovement(season, startWeek, endWeek, results);
                 savePreferences();
-                // Render results with valid games count
                 renderResultsTable(results, validGames);
-
-                // Show success message briefly
                 hideStatus();
-
-                // Hide status after delay
-                
             } catch (error) {
-                console.error('Calculation error:', error);
-                showStatus(`Error: ${error.message}`, 'error');
+                if (version === calculationVersion) showStatus(`Unable to calculate ratings: ${error.message}`, 'error');
             } finally {
-                setButtonLoading(false);
+                if (version === calculationVersion) elements.resultsSection.setAttribute('aria-busy', 'false');
             }
         }
 
-        /**
-         * Handles week selection changes.
-         * Ensures start week doesn't exceed end week and vice versa.
-         */
-        function handleWeekChange() {
-            const startWeek = parseInt(elements.startWeekSelect.value, 10);
-            const endWeek = parseInt(elements.endWeekSelect.value, 10);
-
-            // Auto-correct if start exceeds end
-            for (const option of elements.endWeekSelect.options) option.disabled = Number(option.value) < startWeek;
-            if (startWeek > endWeek) {
-                elements.endWeekSelect.value = startWeek;
-                rangeAdjustment = `End week moved to ${startWeek} to match start week. `;
-            }
+        function handleFilterChange(event) {
+            document.getElementById('range-adjustment').textContent = '';
+            if (event.target === elements.seasonSelect) setLatestWeek();
+            else updateWeekAvailability();
+            savePreferences();
+            return calculateRatings();
         }
 
         /**
@@ -1678,7 +1606,8 @@
             if (!file) return;
 
             try {
-                setButtonLoading(true);
+                ++calculationVersion;
+                setDataLoading(true);
                 showStatus(`Loading ${file.name}...`, 'loading');
 
                 const text = await file.text();
@@ -1693,33 +1622,22 @@
                 // Update application state
                 appState.gamesData = games;
                 appState.dataLoaded = true;
-                appState.availableSeasons.clear();
-
-                games.forEach((game) => {
-                    if (game.season) {
-                        appState.availableSeasons.add(game.season);
-                    }
-                });
+                appState.availableSeasons = new Set(appState.schedule.map(game => game.season));
 
                 populateSeasonDropdown(appState.availableSeasons);
                 setLatestWeek();
                 savePreferences();
 
                 // Hide upload section
+                document.getElementById('range-adjustment').textContent = '';
                 elements.fileUploadSection.style.display = 'none';
-                elements.calculateBtn.disabled = false;
-
-                showStatus(
-                    `File loaded successfully! ${games.length.toLocaleString()} games available.`,
-                    'success',
-                );
-
-                
+                await calculateRatings();
             } catch (error) {
                 console.error('File upload error:', error);
                 showStatus(`Error loading file: ${error.message}`, 'error');
             } finally {
-                setButtonLoading(false);
+                setDataLoading(false);
+                elements.resultsSection.setAttribute('aria-busy', 'false');
             }
         }
 
@@ -1732,59 +1650,22 @@
          * Loads data, populates UI elements, and sets up event listeners.
          */
         async function initializeApp() {
+            populateWeekDropdown('start-week-select', 1);
+            populateWeekDropdown('end-week-select', 18);
+            elements.fileUpload.addEventListener('change', handleFileUpload);
+            setDataLoading(true);
             try {
-                // Populate week dropdowns with default values
-                populateWeekDropdown('start-week-select', 1);
-                populateWeekDropdown('end-week-select', 18);
-
-                // Set up file upload handler
-                elements.fileUpload.addEventListener('change', handleFileUpload);
-
-                // Load games data from CSV
-                const games = await loadGamesData();
-
-                // Store in application state
-                appState.gamesData = games;
+                appState.gamesData = await loadGamesData();
                 appState.dataLoaded = true;
-
-                // Extract available seasons
-                games.forEach((game) => {
-                    if (game.season) {
-                        appState.availableSeasons.add(game.season);
-                    }
-                });
-
-                // Populate season dropdown
+                appState.availableSeasons = new Set(appState.schedule.map(game => game.season));
                 populateSeasonDropdown(appState.availableSeasons);
-
-                // Set up event listeners
-                elements.calculateBtn.addEventListener('click', handleCalculateClick);
-                elements.startWeekSelect.addEventListener('change', handleWeekChange);
-                elements.endWeekSelect.addEventListener('change', handleWeekChange);
-
-                // Hide loading status
                 hideStatus();
-
-                // Show ready message
-                showStatus(
-                    `Data loaded successfully! ${games.length.toLocaleString()} games available.`,
-                    'success',
-                );
-
-                // Hide message after delay
-                
             } catch (error) {
-                console.error('Initialization error:', error);
-                showStatus(`Failed to load data automatically. Please upload a CSV file manually.`, 'error');
-
-                // Show file upload section
+                showStatus('Unable to load game data. Try Refresh data or import a CSV file.', 'error');
                 elements.fileUploadSection.style.display = 'block';
-
-                // Still set up event listeners for when file is uploaded
-                elements.calculateBtn.addEventListener('click', handleCalculateClick);
-                elements.startWeekSelect.addEventListener('change', handleWeekChange);
-                elements.endWeekSelect.addEventListener('change', handleWeekChange);
-                elements.calculateBtn.disabled = true;
+                document.getElementById('week-availability').textContent = 'Game schedule unavailable.';
+            } finally {
+                setDataLoading(false);
             }
         }
 
@@ -1800,7 +1681,6 @@
 
         const STORAGE_PREFIX = 'nfl-ratings-v3-';
         let movement = new Map();
-        let rangeAdjustment = ''; 
         function readStored(key) {
             try { return JSON.parse(localStorage.getItem(STORAGE_PREFIX + key)); }
             catch { return null; }
@@ -1810,23 +1690,83 @@
             catch { document.getElementById('storage-note').textContent = 'Browser storage is unavailable or full. You can still use the app, but data or settings may not persist.'; }
         }
         function describeData(games, source, savedAt, cached) {
-            const latest = games.reduce((a,b) => b.season > a.season || (b.season === a.season && b.week > a.week) ? b : a);
-            document.getElementById('data-freshness').textContent = `Updated ${new Date(savedAt).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})} · Latest: ${latest.season}, Week ${latest.week}${cached ? ' · Cached' : ''}`;
+            const checked = new Date(savedAt).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+            document.getElementById('data-freshness').textContent = `${cached ? 'Cached data · Last successful check' : 'Data checked'} ${checked}`;
             const sourceLabel = source === 'primary source' ? 'habitatring.com/games.csv' : source === 'fallback source' ? 'nflverse/nfldata on GitHub (fallback)' : source;
-            document.getElementById('data-source').textContent = `${sourceLabel} · ${games.length.toLocaleString()} completed games. ${cached ? 'Network unavailable; using saved data. ' : ''}${latest.season} Week ${latest.week} may be incomplete. Updated time is when this app loaded the data.`;
+            document.getElementById('data-source').textContent = `${sourceLabel} · ${games.length.toLocaleString()} recorded games. ${cached ? 'Network unavailable; using saved data. ' : ''}Completeness compares recorded results with the source schedule, not a live game feed. ${appState.completeSchedule ? '' : 'The full schedule is not verified for this file; week completeness is unknown. '}Data checked is when this app retrieved the file, not when results were published.`;
+        }
+        function retainSchedule(csv, source) {
+            appState.schedule = parseCSV(csv, true);
+            appState.completeSchedule = ['primary source', 'fallback source'].includes(source)
+                && appState.schedule.length > 0
+                && appState.schedule.every(game => /^\d{4}-\d{2}-\d{2}$/.test(game.gameday));
         }
         function rememberData(csv, source, games) {
             const savedAt = new Date().toISOString();
+            retainSchedule(csv, source);
             writeStored('cache', {csv, source, savedAt});
             describeData(games, source, savedAt, false);
+        }
+        function seasonWeekAvailability(season) {
+            const weeks = new Map();
+            for (const game of appState.schedule) {
+                if (game.season !== season) continue;
+                if (!weeks.has(game.week)) weeks.set(game.week, {total: 0, recorded: 0});
+                weeks.get(game.week).total++;
+            }
+            for (const game of appState.gamesData) {
+                if (game.season !== season) continue;
+                if (!weeks.has(game.week)) weeks.set(game.week, {total: 0, recorded: 0});
+                weeks.get(game.week).recorded++;
+            }
+            return weeks;
+        }
+        function weekStatus(week) {
+            if (!week?.recorded) return 'No results';
+            if (!appState.completeSchedule || !week.total) return 'Completeness unknown';
+            return week.recorded === week.total ? 'Complete' : 'Partial';
+        }
+        function updateWeekAvailability() {
+            const season = Number(elements.seasonSelect.value);
+            const weeks = seasonWeekAvailability(season);
+            const available = [...weeks].filter(([, week]) => week.recorded > 0).map(([number]) => number).sort((a,b) => a-b);
+            const latest = available.at(-1);
+            const start = elements.startWeekSelect;
+            const end = elements.endWeekSelect;
+            if (latest !== undefined) {
+                if (!available.includes(Number(start.value))) start.value = String(available[0]);
+                if (!available.includes(Number(end.value))) end.value = String(latest);
+                if (Number(start.value) > Number(end.value)) {
+                    end.value = start.value;
+                    document.getElementById('range-adjustment').textContent = `End week moved to ${WEEK_LABELS[start.value]} to match start week.`;
+                }
+            }
+            for (const select of [start, end]) {
+                select.disabled = appState.loadingData || latest === undefined;
+                for (const option of select.options) {
+                    const number = Number(option.value);
+                    const week = weeks.get(number);
+                    option.textContent = `${WEEK_LABELS[number]} — ${weekStatus(week)}`;
+                    option.disabled = !week?.recorded || (select === end && number < Number(start.value));
+                }
+            }
+            const summary = document.getElementById('week-availability');
+            if (latest === undefined) {
+                summary.textContent = `${season}: no results available yet.`;
+                return;
+            }
+            const describe = number => {
+                const week = weeks.get(number);
+                const count = appState.completeSchedule && week.total ? `${week.recorded} of ${week.total}` : String(week.recorded);
+                return `${WEEK_LABELS[number]} · ${weekStatus(week)} · ${count} ${appState.completeSchedule && week.total ? 'games' : week.recorded === 1 ? 'game' : 'games'} recorded`;
+            };
+            summary.textContent = `${season} latest results: ${describe(latest)}.${Number(end.value) !== latest ? ` Selected end: ${describe(Number(end.value))}.` : ''}`;
         }
         function savePreferences() {
             writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, sortColumn: appState.sortColumn, sortDirection: appState.sortDirection, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
         }
         function invalidateResults() {
             appState.currentRatings = [];
-            showStatus(`${rangeAdjustment}Selection changed. Calculate to update ratings.`, 'stale');
-            rangeAdjustment = '';
             elements.resultsSection.classList.remove('results-section--visible');
             writeStored('ratings', null);
             showView();
@@ -1883,7 +1823,7 @@
             if (a === b) { output.textContent = 'Choose two different teams.'; return; }
             const first = appState.currentRatings.find(t => t.team === a);
             const second = appState.currentRatings.find(t => t.team === b);
-            if (!first || !second) { output.textContent = 'Calculate ratings first.'; return; }
+            if (!first || !second) { output.textContent = 'Ratings are not available for this selection.'; return; }
             const margin = matchupMargin(first.rating, second.rating, document.getElementById('matchup-venue').value, appState.currentHFA);
             output.textContent = Math.abs(margin) < 0.05 ? 'Even matchup' : `${margin > 0 ? first.teamName : second.teamName} by ${Math.abs(margin).toFixed(1)} points`;
         }
@@ -1899,23 +1839,29 @@
             const refresh = document.getElementById('refresh-data');
             refresh.onclick = async () => {
                 refresh.disabled = true;
-                elements.calculateBtn.disabled = true;
+                ++calculationVersion;
+                setDataLoading(true);
                 try {
                     const games = await loadGamesData();
                     appState.gamesData = games;
                     appState.dataLoaded = true;
                     const selected = elements.seasonSelect.value;
-                    appState.availableSeasons = new Set(games.map(g => g.season));
+                    appState.availableSeasons = new Set(appState.schedule.map(g => g.season));
                     populateSeasonDropdown(appState.availableSeasons);
                     if ([...elements.seasonSelect.options].some(o => o.value === selected)) elements.seasonSelect.value = selected;
+                    document.getElementById('range-adjustment').textContent = '';
                     setLatestWeek();
                     invalidateResults();
                     savePreferences();
-                    hideStatus();
+                    elements.fileUploadSection.style.display = 'none';
+                    await calculateRatings();
                 } catch (error) { showStatus(error.message, 'error'); elements.fileUploadSection.style.display = 'block'; }
-                finally { refresh.disabled = false; elements.calculateBtn.disabled = !appState.dataLoaded; }
+                finally { setDataLoading(false); elements.resultsSection.setAttribute('aria-busy', 'false'); }
             };
             window.addEventListener('hashchange', showView);
+            for (const select of [elements.seasonSelect,elements.startWeekSelect,elements.endWeekSelect]) {
+                select.addEventListener('change', handleFilterChange);
+            }
             const prefs = readStored('preferences');
             await initializeApp();
             if (prefs) {
@@ -1928,26 +1874,24 @@
                 }
                 if (['rank','team','rating','wins','losses','ties','pointdiff','sos','movementPoints','movementRanks'].includes(prefs.sortColumn)) appState.sortColumn = prefs.sortColumn;
                 if (['asc','desc'].includes(prefs.sortDirection)) appState.sortDirection = prefs.sortDirection;
-                handleWeekChange();
+                if (appState.dataLoaded) updateWeekAvailability();
             }
-            const latest = latestSeasonWeek();
-            if (!prefs || Number(elements.endWeekSelect.value) > latest) setLatestWeek();
-            rangeAdjustment = '';
+            if (appState.dataLoaded) {
+                if (!prefs || Number(elements.endWeekSelect.value) > latestSeasonWeek()) setLatestWeek();
+                else updateWeekAvailability();
+            }
             const saved = readStored('ratings');
-            if (saved && saved.version === 1 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === NUM_TEAMS && saved.results.ratings.every(t => TEAM_NAMES[t.team] && Number.isFinite(t.rating)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
+            if (appState.dataLoaded && saved && saved.version === 1 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === NUM_TEAMS && saved.results.ratings.every(t => TEAM_NAMES[t.team] && Number.isFinite(t.rating)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
                 movement = new Map(saved.movement || []);
                 document.getElementById('comparison-note').textContent = saved.note || '';
                 renderResultsTable(saved.results, saved.gamesCount);
                 hideStatus();
             } else if (appState.dataLoaded) {
                 // First visit or changed data: populate results without a manual click.
-                await handleCalculateClick();
+                await calculateRatings();
             }
             initializeFloatingHeader();
             showView();
-            for (const select of [elements.seasonSelect,elements.startWeekSelect,elements.endWeekSelect]) {
-                select.addEventListener('change', () => { if (select === elements.seasonSelect) setLatestWeek(); savePreferences(); invalidateResults(); });
-            }
         }
 
 
@@ -1993,19 +1937,19 @@
             return JSON.stringify(filterGames(appState.gamesData, Number(elements.seasonSelect.value), Number(elements.startWeekSelect.value), Number(elements.endWeekSelect.value)));
         }
         function latestSeasonWeek() {
-            return appState.gamesData.filter(g => g.season === Number(elements.seasonSelect.value)).reduce((week,g) => Math.max(week,g.week), 1);
+            return appState.gamesData.filter(g => g.season === Number(elements.seasonSelect.value)).reduce((week,g) => Math.max(week,g.week), 0);
         }
         function setLatestWeek() {
             elements.endWeekSelect.value = String(latestSeasonWeek());
             if (Number(elements.startWeekSelect.value) > Number(elements.endWeekSelect.value)) elements.startWeekSelect.value = '1';
-            handleWeekChange();
+            updateWeekAvailability();
         }
         function showView() {
             const matchup = location.hash === '#matchup';
             const ready = appState.currentRatings.length > 0;
             document.getElementById('empty-state').hidden = matchup || ready;
             syncFloatingHeader();
-            elements.statusMessage.hidden = matchup;
+            elements.statusMessage.hidden = false;
             document.querySelector('.control-panel').hidden = matchup;
             elements.resultsSection.hidden = matchup;
             document.getElementById('matchup-view').hidden = !matchup || !ready;

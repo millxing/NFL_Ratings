@@ -12,7 +12,7 @@ Open `NFLPowerRatings.html` in a browser, or serve the project:
 python3 -m http.server 8765
 ```
 
-Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Ratings calculate automatically after game data loads; valid saved results are restored on later visits. Earlier versions remain in git history.
+Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Ratings calculate automatically after game data loads and whenever Season, Start Week, or End Week changes; valid saved results are restored on later visits. Week labels show Complete, Partial, or No results, and weeks with no results are disabled. The latest available week and its recorded/scheduled game counts appear beside the filters. Imported files without a verified full schedule show Completeness unknown. Data checked reports retrieval time, not when game results were published. Earlier versions remain in git history.
 
 The app loads completed game data from remote sources, supports CSV import, and stores preferences and cached results in browser storage. Source details are available in the app.
 
