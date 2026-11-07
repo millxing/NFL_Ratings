@@ -1721,10 +1721,13 @@
             }
             return weeks;
         }
-        function weekStatus(week) {
+        function weekStatus(week, season) {
             if (!week?.recorded) return 'No results';
             if (!appState.completeSchedule || !week.total) return 'Completeness unknown';
-            return week.recorded === week.total ? 'Complete' : 'Partial';
+            const today = new Date();
+            // January/February games still belong to the preceding NFL season.
+            const currentSeason = today.getFullYear() - (today.getMonth() < 2 ? 1 : 0);
+            return season < currentSeason || week.recorded === week.total ? '' : 'Partial';
         }
         function updateWeekAvailability() {
             const season = Number(elements.seasonSelect.value);
@@ -1746,7 +1749,8 @@
                 for (const option of select.options) {
                     const number = Number(option.value);
                     const week = weeks.get(number);
-                    option.textContent = `${WEEK_LABELS[number]} — ${weekStatus(week)}`;
+                    const status = weekStatus(week, season);
+                    option.textContent = `${WEEK_LABELS[number]}${status ? ` — ${status}` : ''}`;
                     option.disabled = !week?.recorded || (select === end && number < Number(start.value));
                 }
             }
@@ -1758,7 +1762,8 @@
             const describe = number => {
                 const week = weeks.get(number);
                 const count = appState.completeSchedule && week.total ? `${week.recorded} of ${week.total}` : String(week.recorded);
-                return `${WEEK_LABELS[number]} · ${weekStatus(week)} · ${count} ${appState.completeSchedule && week.total ? 'games' : week.recorded === 1 ? 'game' : 'games'} recorded`;
+                const status = weekStatus(week, season);
+                return `${WEEK_LABELS[number]}${status ? ` · ${status}` : ''} · ${count} ${appState.completeSchedule && week.total ? 'games' : week.recorded === 1 ? 'game' : 'games'} recorded`;
             };
             summary.textContent = `${season} latest results: ${describe(latest)}.${Number(end.value) !== latest ? ` Selected end: ${describe(Number(end.value))}.` : ''}`;
         }

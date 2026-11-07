@@ -46,6 +46,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
         Option: function(text,value) { this.textContent = text; this.value = String(value); },
         localStorage: {getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
         fetch: async () => { if (network.fail) throw new Error('offline'); return {ok:true,text:async()=>network.csvText}; },
+        Date: class extends Date { constructor(...args) { super(...(args.length ? args : ['2025-11-07T12:00:00Z'])); } },
         AbortSignal, setTimeout, console: {log(){},warn(){},error(){}}, renders: [], solverCalls: 0,
     });
     vm.runInContext(script,context);
@@ -74,6 +75,12 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(firstVisit.context.renders.length,1,'Fresh visit calculates automatically');
     assert.equal(firstVisit.context.renders[0].gamesCount,129);
     assert.equal(firstVisit.node('end-week-select').value,'9');
+    assert.equal(firstVisit.node('end-week-select').options.find(o=>o.value==='9').textContent,'Week 9 — Partial');
+    const historical = harness({csvText:currentCSV.replaceAll('2025','2024')});
+    await historical.context.initializeV2();
+    assert.equal(historical.node('end-week-select').options.find(o=>o.value==='9').textContent,'Week 9');
+    assert.doesNotMatch(historical.node('week-availability').textContent,/Complete|Partial/);
+    assert.equal(historical.node('end-week-select').options.find(o=>o.value==='10').textContent,'Week 10 — No results');
     const h = harness();
     await h.context.initializeV2();
     // Newest scheduled season has no results; it must clearly say so.
@@ -84,14 +91,14 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(h.context.renders.at(-1).gamesCount,129);
     assert.equal(h.context.renders.at(-1).results.ratings.length,32);
     assert.match(h.node('week-availability').textContent,/Week 9 · Partial · 1 of 16 games recorded/);
-    assert.match(h.node('end-week-select').options.find(o=>o.value==='8').textContent,/Complete/);
+    assert.equal(h.node('end-week-select').options.find(o=>o.value==='8').textContent,'Week 8');
     assert.equal(h.node('end-week-select').options.find(o=>o.value==='10').disabled,true);
     assert.match(h.node('data-freshness').textContent,/^Data checked/);
     assert.equal(h.node('status-message').textContent,'');
 
     await h.node('end-week-select').change('8');
     assert.equal(h.context.renders.at(-1).gamesCount,128);
-    assert.match(h.node('week-availability').textContent,/Selected end: Week 8 · Complete/);
+    assert.match(h.node('week-availability').textContent,/Selected end: Week 8 · 16 of 16 games recorded/);
     await h.node('start-week-select').change('2');
     assert.equal(h.context.renders.at(-1).gamesCount,112);
     const before = h.context.renders.length;
