@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const html = fs.readFileSync(path.join(__dirname, '../NFLPowerRatings-v3.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../NFLpowerRatings.html'), 'utf8');
 const context = vm.createContext({ console: { log() {}, warn() {} }, document: { getElementById: () => ({}), addEventListener() {} } });
 vm.runInContext(html.match(/<script>([\s\S]*?)<\/script>/)[1], context);
 const { buildDesignMatrix, performOLSRegression, parseCSV } = context;

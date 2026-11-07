@@ -25,7 +25,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
         content="Rob Schoen's NFL Power Ratings Calculator: Point Differential & Strength of Schedule">
-    <title>NFL Power Ratings Calculator</title>
+    <title>NFL Power Ratings</title>
 
     <!-- 
     Google Fonts: Using Oswald for bold headlines and Source Sans 3 for body text.
@@ -38,749 +38,130 @@
         rel="stylesheet">
 
     <style>
-        /* ========================================================================
-       CSS CUSTOM PROPERTIES (Design Tokens)
-       ========================================================================
-       Centralized design tokens for consistent theming throughout the app.
-       Using a dark, athletic-inspired color palette with orange/gold accents.
-    */
-        :root {
-            /* Primary Colors - Dark athletic theme */
-            --color-bg-primary: #0a0f14;
-            --color-bg-secondary: #121a24;
-            --color-bg-tertiary: #1a2634;
-            --color-bg-card: #162029;
-
-            /* Accent Colors - Sports energy */
-            --color-accent-primary: #ff6b35;
-            --color-accent-secondary: #f7c948;
-            --color-accent-glow: rgba(255, 107, 53, 0.4);
-
-            /* Text Colors */
-            --color-text-primary: #ffffff;
-            --color-text-secondary: #a8b9cc;
-            --color-text-muted: #6b7d8f;
-
-            /* Positive/Negative indicators for ratings */
-            --color-positive: #4ade80;
-            --color-negative: #f87171;
-            --color-neutral: #fbbf24;
-
-            /* Typography */
-            --font-display: 'Oswald', sans-serif;
-            --font-body: 'Source Sans 3', sans-serif;
-
-            /* Spacing Scale */
-            --space-xs: 0.25rem;
-            --space-sm: 0.5rem;
-            --space-md: 1rem;
-            --space-lg: 1.5rem;
-            --space-xl: 2rem;
-            --space-2xl: 3rem;
-            --space-3xl: 4rem;
-
-            /* Border Radius */
-            --radius-sm: 4px;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-
-            /* Shadows */
-            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-            --shadow-glow: 0 0 30px var(--color-accent-glow);
-
-            /* Transitions */
-            --transition-fast: 150ms ease;
-            --transition-base: 250ms ease;
-            --transition-slow: 400ms ease;
-        }
-
-        /* ========================================================================
-       CSS RESET & BASE STYLES
-       ========================================================================
-    */
-        *,
-        *::before,
-        *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html {
-            font-size: 16px;
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: var(--font-body);
-            font-weight: 400;
-            line-height: 1.6;
-            color: var(--color-text-primary);
-            background: var(--color-bg-primary);
-            min-height: 100vh;
-
-            /* Subtle gradient background for depth */
-            background:
-                radial-gradient(ellipse at 20% 0%, rgba(255, 107, 53, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 100%, rgba(247, 201, 72, 0.05) 0%, transparent 50%),
-                var(--color-bg-primary);
-        }
-
-        /* ========================================================================
-       LAYOUT COMPONENTS
-       ========================================================================
-    */
-
-        /* Main container with max-width constraint */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: var(--space-lg);
-        }
-
-        /* ========================================================================
-       HEADER STYLES
-       ========================================================================
-       Bold, impactful header with athletic styling.
-    */
-        .header {
-            text-align: center;
-            padding: var(--space-lg) 0 var(--space-md);
-            position: relative;
-        }
-
-        .header::before {
-            /* Decorative accent line above title */
-            content: '';
-            position: absolute;
-            top: var(--space-sm);
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 3px;
-            background: linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-secondary));
-            border-radius: 2px;
-        }
-
-        .header__title {
-            font-family: var(--font-display);
-            font-size: clamp(1.75rem, 4vw, 2.5rem);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            line-height: 1.1;
-
-            /* Gradient text effect */
-            background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-accent-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .header__subtitle {
-            font-family: var(--font-body);
-            font-size: 0.875rem;
-            color: var(--color-text-secondary);
-            margin-top: var(--space-xs);
-            font-weight: 400;
-        }
-
-        /* ========================================================================
-       CONTROL PANEL STYLES
-       ========================================================================
-       The main interface for season/week selection.
-    */
-        .control-panel {
-            background: var(--color-bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius-md);
-            padding: var(--space-md) var(--space-lg);
-            margin-bottom: var(--space-lg);
-            box-shadow: var(--shadow-card);
-        }
-
-        .control-panel__title {
-            font-family: var(--font-display);
-            font-size: 1rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--color-accent-secondary);
-            margin-bottom: var(--space-md);
-            display: flex;
-            align-items: center;
-            gap: var(--space-sm);
-        }
-
-        .control-panel__title::before {
-            /* Small decorative square */
-            content: '';
-            width: 8px;
-            height: 8px;
-            background: var(--color-accent-primary);
-            border-radius: 2px;
-        }
-
-        /* Form grid layout for controls */
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: var(--space-md);
-            margin-bottom: var(--space-md);
-        }
-
-        /* Individual form field styling */
-        .form-field {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-sm);
-        }
-
-        .form-field__label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--color-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Select dropdown styling */
-        .form-field__select {
-            appearance: none;
-            background: var(--color-bg-tertiary);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius-md);
-            padding: var(--space-sm) var(--space-md);
-            padding-right: 2.5rem;
-            font-family: var(--font-body);
-            font-size: 0.9375rem;
-            font-weight: 600;
-            color: var(--color-text-primary);
-            cursor: pointer;
-            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-
-            /* Custom dropdown arrow */
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8b9cc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right var(--space-md) center;
-        }
-
-        .form-field__select:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .form-field__select:focus {
-            outline: none;
-            border-color: var(--color-accent-primary);
-            box-shadow: 0 0 0 3px var(--color-accent-glow);
-        }
-
-        /* Calculate button styling */
-        .btn-calculate {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-sm);
-            width: 100%;
-            padding: var(--space-sm) var(--space-lg);
-            font-family: var(--font-display);
-            font-size: 1rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--color-bg-primary);
-            background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
-            border: none;
-            border-radius: var(--radius-md);
-            cursor: pointer;
-            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-        }
-
-        .btn-calculate:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-glow);
-        }
-
-        .btn-calculate:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        .btn-calculate:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        /* Loading spinner for button */
-        .btn-calculate__spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid transparent;
-            border-top-color: var(--color-bg-primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: none;
-        }
-
-        .btn-calculate--loading .btn-calculate__spinner {
-            display: block;
-        }
-
-        .btn-calculate--loading .btn-calculate__text {
-            display: none;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* ========================================================================
-       STATUS MESSAGE STYLES
-       ========================================================================
-    */
-        .status-message {
-            text-align: center;
-            padding: var(--space-lg);
-            border-radius: var(--radius-md);
-            margin-bottom: var(--space-lg);
-            font-weight: 600;
-            display: none;
-        }
-
-        .status-message--visible {
-            display: block;
-            animation: fadeIn var(--transition-base);
-        }
-
-        .status-message--loading {
-            background: rgba(255, 107, 53, 0.1);
-            border: 1px solid rgba(255, 107, 53, 0.3);
-            color: var(--color-accent-primary);
-        }
-
-        .status-message--error {
-            background: rgba(248, 113, 113, 0.1);
-            border: 1px solid rgba(248, 113, 113, 0.3);
-            color: var(--color-negative);
-        }
-
-        .status-message--success {
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid rgba(74, 222, 128, 0.3);
-            color: var(--color-positive);
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* ========================================================================
-       RESULTS TABLE STYLES
-       ========================================================================
-       Clean, data-focused table for power ratings display.
-    */
-        .results-section {
-            display: none;
-        }
-
-        .results-section--visible {
-            display: block;
-            animation: slideUp var(--transition-slow);
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .results-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: var(--space-md);
-            margin-bottom: var(--space-sm);
-        }
-
-        .results-title {
-            font-family: var(--font-display);
-            font-size: 1.5rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .results-meta {
-            font-size: 0.875rem;
-            color: var(--color-text-muted);
-        }
-
-        .results-meta span {
-            color: var(--color-accent-secondary);
-            font-weight: 600;
-        }
-
-        /* Table container with horizontal scroll for mobile */
-        .table-container {
-            background: var(--color-bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
-            max-height: 650px;
-            overflow-y: auto;
-        }
-
-        /* Sticky header when scrolling */
-        .results-table thead {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: var(--color-bg-tertiary);
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.9375rem;
-        }
-
-        .results-table th {
-            font-family: var(--font-display);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            font-size: 0.75rem;
-            color: var(--color-text-secondary);
-            padding: var(--space-md) var(--space-lg);
-            text-align: right;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-            cursor: pointer;
-            user-select: none;
-            transition: color var(--transition-fast);
-        }
-
-        /* Left-align Rank and Team headers */
-        .results-table th[data-sort="rank"],
-        .results-table th[data-sort="team"] {
-            text-align: left;
-        }
-
-        .results-table th:hover {
-            color: var(--color-accent-primary);
-        }
-
-        .results-table th.sort-active {
-            color: var(--color-accent-secondary);
-        }
-
-        .results-table th .sort-indicator {
-            margin-left: var(--space-xs);
-            opacity: 0.5;
-        }
-
-        .results-table th.sort-active .sort-indicator {
-            opacity: 1;
-        }
-
-        /* Remove right-alignment for last column - not needed with centered numeric cells */
-
-        .results-table tbody tr {
-            transition: background var(--transition-fast);
-        }
-
-        .results-table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .results-table td {
-            padding: var(--space-md) var(--space-lg);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        /* Rank column styling */
-        .rank-cell {
-            font-family: var(--font-display);
-            font-weight: 700;
-            color: var(--color-text-muted);
-            width: 60px;
-        }
-
-        /* Team name styling */
-        .team-cell {
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: var(--space-sm);
-        }
-
-        .team-cell__abbr {
-            font-family: var(--font-display);
-            font-size: 0.75rem;
-            color: var(--color-text-muted);
-            background: var(--color-bg-tertiary);
-            padding: 2px 6px;
-            border-radius: var(--radius-sm);
-        }
-
-        /* Power rating value styling */
-        .rating-cell {
-            font-family: var(--font-display);
-            font-weight: 700;
-            font-size: 1.125rem;
-        }
-
-        .rating-cell--positive {
-            color: var(--color-positive);
-        }
-
-        .rating-cell--negative {
-            color: var(--color-negative);
-        }
-
-        .rating-cell--neutral {
-            color: var(--color-neutral);
-        }
-
-        /* W-L-T record styling */
-        .record-cell {
-            font-family: var(--font-display);
-            font-weight: 600;
-            font-size: 0.9375rem;
-            color: var(--color-text-secondary);
-            text-align: center;
-            width: 60px;
-            padding: var(--space-md) var(--space-sm);
-        }
-
-        /* Numeric columns (Rating, Pt Diff, SOS) - consistent spacing */
-        .numeric-cell {
-            padding: var(--space-md) var(--space-sm);
-            text-align: center;
-        }
-
-        /* Home field advantage display */
-        .hfa-display {
-            margin-top: var(--space-md);
-            padding: var(--space-sm) var(--space-md);
-            background: var(--color-bg-tertiary);
-            border-radius: var(--radius-md);
-            display: inline-block;
-            font-size: 0.875rem;
-        }
-
-        .hfa-display__label {
-            font-size: 0.75rem;
-            color: var(--color-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            display: inline;
-            margin-right: var(--space-sm);
-        }
-
-        .hfa-display__value {
-            font-family: var(--font-display);
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: var(--color-accent-secondary);
-        }
-
-        .hfa-display__unit {
-            font-size: 0.875rem;
-            color: var(--color-text-muted);
-            margin-left: var(--space-xs);
-        }
-
-        /* ========================================================================
-       FOOTER STYLES
-       ========================================================================
-    */
-        .footer {
-            text-align: center;
-            padding: var(--space-md) 0 var(--space-sm);
-            color: var(--color-text-muted);
-            font-size: 0.75rem;
-        }
-
-        .footer a {
-            color: var(--color-accent-primary);
-            text-decoration: none;
-            transition: color var(--transition-fast);
-        }
-
-        .footer a:hover {
-            color: var(--color-accent-secondary);
-        }
-
-        /* ========================================================================
-       FILE UPLOAD FALLBACK STYLES
-       ========================================================================
-    */
-        .file-upload-section {
-            background: rgba(255, 107, 53, 0.1);
-            border: 1px dashed var(--color-accent-primary);
-            border-radius: var(--radius-md);
-            padding: var(--space-lg);
-            margin-bottom: var(--space-lg);
-            text-align: center;
-        }
-
-        .file-upload-note {
-            color: var(--color-text-secondary);
-            margin-bottom: var(--space-md);
-        }
-
-        .file-upload-input {
-            display: block;
-            width: 100%;
-            padding: var(--space-md);
-            background: var(--color-bg-tertiary);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--radius-md);
-            color: var(--color-text-primary);
-            cursor: pointer;
-            margin-bottom: var(--space-sm);
-        }
-
-        .file-upload-input:hover {
-            border-color: var(--color-accent-primary);
-        }
-
-        .file-upload-hint {
-            font-size: 0.875rem;
-            color: var(--color-text-muted);
-        }
-
-        .file-upload-hint a {
-            color: var(--color-accent-primary);
-            text-decoration: none;
-        }
-
-        .file-upload-hint a:hover {
-            text-decoration: underline;
-        }
-
-        /* ========================================================================
-       RESPONSIVE ADJUSTMENTS
-       ========================================================================
-    */
-        @media (max-width: 768px) {
-            .container {
-                padding: var(--space-md);
-            }
-
-            .control-panel {
-                padding: var(--space-lg);
-            }
-
-            .results-table {
-                font-size: 0.8125rem;
-            }
-
-            .results-table th,
-            .results-table td {
-                padding: var(--space-xs) var(--space-sm);
-            }
-
-            .results-table th {
-                font-size: 0.625rem;
-            }
-
-            /* Hide team abbreviation badge on mobile */
-            .team-cell__abbr {
-                display: none;
-            }
-
-            /* Make team names more compact on mobile */
-            .team-cell {
-                font-size: 0.75rem;
-                min-width: 80px;
-            }
-
-            /* Reduce rank column width */
-            .rank-cell {
-                width: 30px;
-                font-size: 0.75rem;
-            }
-
-            /* Reduce record columns width */
-            .record-cell {
-                width: 30px;
-                font-size: 0.75rem;
-                padding: var(--space-xs) 1px;
-            }
-
-            /* Make rating columns more compact */
-            .rating-cell {
-                font-size: 0.8125rem;
-                white-space: nowrap;
-                padding: var(--space-xs) var(--space-xs);
-            }
-
-            /* Make HFA display even more compact on mobile */
-            .hfa-display {
-                font-size: 0.75rem;
-                padding: var(--space-xs) var(--space-sm);
-            }
-
-            .hfa-display__label {
-                font-size: 0.625rem;
-            }
-
-            .hfa-display__value {
-                font-size: 0.9375rem;
-            }
-
-            .hfa-display__unit {
-                font-size: 0.75rem;
-            }
-        }
-    
-        .v2-panel { margin: 20px 0; padding: 24px; border: 1px solid #344351; border-radius: 12px; background: var(--color-bg-card); color: var(--color-text-primary); }
-        .v2-panel h2 { margin: 0 0 12px; font-size: 20px; }
-        .v2-panel p { line-height: 1.6; margin: 10px 0; }
-        .v2-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; }
-        .v2-actions button { padding:10px 16px; border:1px solid #526477; border-radius:6px; background:var(--color-bg-tertiary); color:var(--color-text-primary); cursor:pointer; }
-        #matchup-result { font-size:24px; font-weight:700; }
-        .movement { white-space:nowrap; font-variant-numeric:tabular-nums; }
-        #storage-note { color:var(--color-accent-secondary); }
-        .table-container { overflow-x: auto; }
-        .results-table { min-width: 760px; }
-        #comparison-note { margin-top:16px; color:var(--color-text-secondary); line-height:1.6; }
-        [hidden] { display:none !important; }
-        .view-nav { display:flex; justify-content:center; gap:12px; margin-bottom:24px; }
-        .view-nav a { padding:12px 18px; color:var(--color-text-secondary); border-bottom:2px solid transparent; text-decoration:none; }
-        .view-nav a[aria-current="page"] { color:var(--color-accent-secondary); border-color:var(--color-accent-primary); }
-        .data-status { margin-top:28px; padding-top:16px; border-top:1px solid #344351; color:var(--color-text-secondary); font-size:14px; }
-        .data-summary { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px 18px; }
-        .data-summary details { flex:1; min-width:120px; }
-        .data-summary summary { cursor:pointer; color:var(--color-accent-secondary); }
-        .source-content { padding:12px 0; line-height:1.6; }
-        #matchup-view .results-table th,
-        #matchup-view .results-table td {
-            padding: 16px 12px;
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-        #matchup-view .results-table th:nth-child(-n+2),
-        #matchup-view .results-table td:nth-child(-n+2) { text-align: left; }
-        #matchup-view .results-table th { cursor: default; }
+        :root { color-scheme:dark; --bg:#101519; --surface:#182026; --raised:#202b33; --line:#34424c; --text:#edf2f4; --muted:#afbdc7; --accent:#e8b568; --positive:#89d6ae; --negative:#f39c9c; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 'Source Sans 3',system-ui,sans-serif; }
+        button,select,input { font:inherit; }
+        a { color:var(--accent); }
+        button,a,select,summary { -webkit-tap-highlight-color:transparent; }
+        :focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+        [hidden] { display:none!important; }
+        .container { max-width:1200px; margin:auto; padding:24px 32px 32px; }
+        .app-bar { display:flex; align-items:center; justify-content:space-between; gap:24px; border-bottom:1px solid var(--line); margin-bottom:24px; }
+        .header__title { font:500 24px/1.2 'Oswald',sans-serif; margin:0; letter-spacing:.015em; }
+        .header__title span { color:var(--muted); font:12px 'Source Sans 3',sans-serif; margin-left:8px; }
+        .view-nav { display:flex; gap:24px; }
+        .view-nav a { color:var(--muted); text-decoration:none; padding:16px 0; border-bottom:2px solid transparent; font-weight:600; }
+        .view-nav a[aria-current] { color:var(--accent); border-color:var(--accent); }
+        .view-nav a:hover { color:var(--text); }
+        .control-panel { display:grid; grid-template-columns:1fr auto; align-items:end; gap:16px; padding:18px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+        .controls-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+        .form-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+        .form-field__label { font-size:13px; font-weight:600; color:var(--muted); }
+        .form-field__select { width:100%; min-width:0; height:44px; padding:0 12px; background:var(--bg); border:1px solid #50616e; color:var(--text); border-radius:5px; cursor:pointer; }
+        .form-field__select:hover { border-color:var(--muted); }
+        button { cursor:pointer; transition:background .15s,color .15s; }
+        button:active { transform:translateY(1px); }
+        button:disabled { opacity:.55; cursor:wait; }
+        .btn-calculate { height:44px; border:0; border-radius:5px; background:var(--accent); color:#1e211f; font-weight:700; padding:0 22px; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .btn-calculate:hover { background:#f1c889; }
+        .btn-calculate__spinner { display:none; width:16px; height:16px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+        .btn-calculate--loading .btn-calculate__spinner { display:block; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .status-message { display:none; margin:14px 0; padding:10px 14px; border-left:3px solid var(--accent); background:var(--surface); }
+        .status-message--visible { display:block; }
+        .status-message--error { border-color:var(--negative); color:var(--negative); }
+        .status-message--success { border-color:var(--positive); }
+        .empty-state { color:var(--muted); padding:24px 0; margin:0; }
+        .results-section { display:none; margin-top:24px; }
+        .results-section--visible { display:block; }
+        .results-header { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; }
+        h2 { font-size:20px; font-weight:600; margin:0; }
+        .results-meta,#analysis-context { color:var(--muted); font-size:14px; margin:0; }
+        .table-container { overflow:auto; border:1px solid var(--line); border-radius:7px; scrollbar-color:#637786 var(--surface); }
+        .results-table { border-collapse:separate; border-spacing:0; width:100%; min-width:850px; font-size:14px; font-variant-numeric:tabular-nums; }
+        .results-table th,.results-table td { padding:11px 12px; text-align:right; white-space:nowrap; border-bottom:1px solid #2b3740; }
+        .results-table th { background:var(--raised); color:var(--muted); font-size:13px; font-weight:600; }
+        .results-table th:nth-child(2),.results-table td:nth-child(2) { text-align:left; }
+        .results-table td { background:var(--surface); }
+        .results-table tbody tr:nth-child(even) td { background:#1b242b; }
+        .results-table tbody tr:hover td { background:#25323b; }
+        .results-table tr:last-child td { border-bottom:0; }
+        .results-table th:first-child,.results-table td:first-child { position:sticky; left:0; z-index:1; min-width:72px; width:72px; }
+        .results-table th:nth-child(2),.results-table td:nth-child(2) { position:sticky; left:72px; z-index:1; border-right:1px solid var(--line); }
+        .floating-head { position:fixed; top:0; overflow:hidden; z-index:4; border:1px solid var(--line); box-shadow:0 4px 12px #0004; }
+        .floating-head .results-table { table-layout:fixed; }
+        .mobile-matchup { display:none; }
+        .mobile-matchup table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:14px; }
+        .mobile-matchup th,.mobile-matchup td { padding:10px 8px; border-bottom:1px solid var(--line); text-align:right; }
+        .mobile-matchup th:first-child { text-align:left; color:var(--muted); font-weight:400; }
+        .mobile-matchup thead th { background:var(--raised); }
+        .mobile-matchup tbody tr:nth-child(2) { background:var(--surface); font-weight:700; }
+        .mobile-matchup caption { text-align:left; font-weight:600; margin-bottom:10px; }
+        .form-field__select { scroll-margin-top:60px; }
+        .sort-button { border:0; background:transparent; padding:0; color:inherit; font-weight:600; min-height:24px; }
+        .sort-button:hover,.sort-active { color:var(--accent)!important; }
+        .sort-indicator { font-size:10px; display:inline-block; width:10px; margin-left:3px; }
+        .rank-cell,.team-cell__abbr { color:var(--muted); }
+        .team-cell { font-weight:600; }
+        .team-cell__abbr { font-size:12px; font-weight:400; margin-left:8px; }
+        .rating-cell { font-weight:600; }
+        .rating-cell--positive { color:var(--positive); }
+        .rating-cell--negative { color:var(--negative); }
+        .rating-cell--neutral { color:var(--text); }
+        .movement { color:var(--muted); }
+        .hfa-display { display:flex; gap:8px; align-items:baseline; margin-top:16px; color:var(--muted); font-size:14px; }
+        .hfa-display__value { color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; }
+        #comparison-note { font-size:14px; color:var(--muted); }
+        #comparison-note:empty { display:none; }
+        .table-help { display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:13px; margin:10px 0 0; }
+        .table-help summary { cursor:pointer; }
+        .table-help p { max-width:680px; }
+        .scroll-hint { display:none; }
+        .v2-panel { margin:24px 0; }
+        #analysis-context { margin:6px 0 20px; }
+        #matchup-result { padding:20px; margin:24px 0; background:var(--surface); border-left:3px solid var(--accent); font-size:24px; font-weight:600; }
+        #matchup-result.is-notice { font-size:16px; color:var(--muted); }
+        .footer { padding-top:16px; color:var(--muted); font-size:13px; }
+        .license-notice { margin:0; line-height:1.7; }
+        .data-status { border-top:1px solid var(--line); margin-top:28px; padding-top:16px; color:var(--muted); font-size:13px; }
+        .data-summary { display:flex; gap:12px 24px; align-items:baseline; flex-wrap:wrap; }
+        .data-summary details { flex:1; min-width:160px; }
+        summary { cursor:pointer; }
+        .source-content { padding:4px 0 12px; max-width:720px; }
+        .v2-actions { display:flex; gap:10px; }
+        .v2-actions button { padding:8px 14px; background:var(--raised); border:1px solid #50616e; border-radius:5px; color:var(--text); }
+        .v2-actions button:hover { background:#34434e; }
+        .file-upload-section { grid-column:1/-1; padding-bottom:16px; border-bottom:1px solid var(--line); }
+        .file-upload-hint { color:var(--muted); font-size:14px; }
+        #storage-note { color:var(--accent); }
+        .skip-link { position:absolute; left:16px; top:-80px; padding:8px; background:var(--surface); z-index:5; }
+        .skip-link:focus { top:8px; }
+        @media(max-width:800px) {
+            .container { padding:18px 20px; }
+            .control-panel { grid-template-columns:1fr; }
+            .btn-calculate { width:100%; }
+            .team-cell__abbr { display:none; }
+            .scroll-hint { display:block; margin:0 0 10px; }
+        }
+        @media(max-width:540px) {
+            .container { padding:16px; }
+            .app-bar { display:block; margin-bottom:18px; }
+            .header__title { font-size:22px; }
+            .view-nav { gap:24px; margin-top:6px; }
+            .view-nav a { padding:12px 0; font-size:15px; }
+            .control-panel { padding:14px; }
+            .controls-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+            .controls-grid .form-field:first-child { grid-column:1/-1; }
+            #matchup-view .controls-grid { grid-template-columns:1fr; }
+            .results-header { align-items:baseline; flex-wrap:wrap; }
+            .results-table th,.results-table td { padding:11px 10px; }
+            .results-table { min-width:790px; }
+            #matchup-view .table-container { display:none; }
+            .mobile-matchup { display:block; }
+            #matchup-result { font-size:21px; padding:16px; }
+        }
+        @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
     </style>
 </head>
 
@@ -788,18 +169,16 @@
     <!-- ========================================================================
        MAIN APPLICATION CONTAINER
        ======================================================================== -->
-    <div class="container">
+    <a class="skip-link" href="#main-content">Skip to ratings</a>
+    <main class="container" id="main-content">
 
         <!-- Page Header -->
-        <header class="header">
-            <h1 class="header__title">NFL Power Ratings v2</h1>
-            <p class="header__subtitle">
-                Ratings based on point differential and strength of schedule
-            </p>
+        <div class="app-bar"><header class="header">
+            <h1 class="header__title">NFL Power Ratings</h1>
         </header>
 
-        <nav class="view-nav" aria-label="App views"><a href="#ratings" id="ratings-link" aria-current="page">Power ratings</a><a href="#matchup" id="matchup-link">Matchup calculator</a></nav>
-        <p id="view-message" hidden>Calculate power ratings to use the matchup calculator.</p>
+        <nav class="view-nav" aria-label="App views"><a href="#ratings" id="ratings-link" aria-current="page">Power ratings</a><a href="#matchup" id="matchup-link">Matchup calculator</a></nav></div>
+        <p id="view-message" hidden><a href="#ratings">Calculate power ratings</a> to use the matchup calculator.</p>
         <!-- Control Panel: Season and Week Selection -->
         <section class="control-panel">
 
@@ -844,34 +223,37 @@
             <!-- Calculate Button -->
             <button id="calculate-btn" class="btn-calculate" type="button">
                 <span class="btn-calculate__spinner"></span>
-                <span class="btn-calculate__text">Calculate Power Ratings</span>
+                <span class="btn-calculate__text">Calculate ratings</span>
             </button>
         </section>
 
         <!-- Status Message Display -->
         <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
 
+        <p id="empty-state" class="empty-state">Choose a season and week range, then calculate ratings.</p>
         <!-- Results Section: Power Ratings Table -->
         <section id="results-section" class="results-section">
             <div class="results-header">
                 <h2 class="results-title">Power Ratings</h2>
                 <p class="results-meta">
-                    <span id="games-count">0</span> games analyzed
+                    <span id="games-count">0</span> games · <span id="results-range"></span>
                 </p>
             </div>
 
-            <div class="table-container">
+            <p class="scroll-hint table-help">Scroll for record and other metrics →</p>
+            <div class="table-container" tabindex="0" role="region" aria-label="Power ratings">
                 <table class="results-table">
                     <thead>
                         <tr>
-                            <th data-sort="rank" class="sort-active">Rank <span class="sort-indicator">▼</span></th>
-                            <th data-sort="team">Team <span class="sort-indicator">▼</span></th>
-                            <th data-sort="wins">Wins <span class="sort-indicator">▼</span></th>
-                            <th data-sort="losses">Losses <span class="sort-indicator">▼</span></th>
-                            <th data-sort="ties">Ties <span class="sort-indicator">▼</span></th>
-                            <th data-sort="rating">Rating <span class="sort-indicator">▼</span></th>
-                            <th title="Rating points gained or lost since the preceding end week">Δ Rating</th><th title="Ranks gained or lost since the preceding end week">Δ Rank</th><th data-sort="pointdiff">Pt Diff <span class="sort-indicator">▼</span></th>
-                            <th data-sort="sos">SOS <span class="sort-indicator">▼</span></th>
+                            <th data-sort="rank" scope="col" aria-sort="none"><button class="sort-button" type="button">Rank <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="team" scope="col" aria-sort="none"><button class="sort-button" type="button">Team <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="rating" scope="col" aria-sort="none"><button class="sort-button" type="button">Rating <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="wins" scope="col" aria-sort="none"><button class="sort-button" type="button">Wins <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="losses" scope="col" aria-sort="none"><button class="sort-button" type="button">Losses <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="ties" scope="col" aria-sort="none"><button class="sort-button" type="button">Ties <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            
+                            <th data-sort="movementPoints" aria-sort="none" title="Rating points gained or lost since the preceding end week"><button class="sort-button" type="button">Δ Rating <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th data-sort="movementRanks" aria-sort="none" title="Ranks gained or lost since the preceding end week"><button class="sort-button" type="button">Δ Rank <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th data-sort="pointdiff" scope="col" aria-sort="none"><button class="sort-button" type="button">Pt Diff <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="sos" scope="col" aria-sort="none"><button class="sort-button" type="button">SOS <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
                         </tr>
                     </thead>
                     <tbody id="results-body">
@@ -880,9 +262,10 @@
                 </table>
             </div>
 
+            <div class="table-help"><details><summary>How to read the ratings</summary><p>Rating estimates points above or below an average team on a neutral field. Pt Diff is average scoring margin; SOS is strength of schedule. Δ Rating and Δ Rank compare with the preceding end week. Positive rank movement means a climb.</p></details></div>
             <p id="comparison-note"></p>
             <!-- Home Field Advantage Display -->
-            <div class="hfa-display">
+            <div class="hfa-display" title="Estimated using non-neutral games only, adjusting for team strength. Ratings then use all games with this estimate fixed; neutral sites receive zero home advantage.">
                 <span class="hfa-display__label">Home Field Advantage:</span>
                 <span id="hfa-value" class="hfa-display__value">0.0</span>
                 <span class="hfa-display__unit">points</span>
@@ -898,7 +281,8 @@
                 <div class="form-field"><label for="matchup-venue" class="form-field__label">Venue</label><select id="matchup-venue" class="form-field__select"><option value="neutral">Neutral field</option><option value="a">Team A home</option><option value="b">Team B home</option></select></div>
               </div>
               <p id="matchup-result" aria-live="polite"></p>
-              <div class="table-container"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Rating</th><th>Δ Rating</th><th>Δ Rank</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
+              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>Rating</th><th>W</th><th>L</th><th>T</th><th>Δ Rating</th><th>Δ Rank</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
+              <div class="mobile-matchup" id="mobile-matchup"></div>
             </section>
 
         <section class="data-status" aria-label="Data status">
@@ -906,21 +290,14 @@
             <p id="storage-note" role="status"></p>
         </section>
 
-        <!-- Page Footer -->
         <footer class="footer">
-            <p>
-                Data from
-                <a href="https://github.com/nflverse/nfldata" target="_blank" rel="noopener noreferrer">
-                    nflverse/nfldata
-                </a>
-            </p>
             <p class="license-notice">
                 Page content licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="license">CC BY 4.0</a>
                 <span aria-hidden="true"> · </span>
                 <a href="https://entangledparticles.xyz/">entangledparticles.xyz</a>
             </p>
         </footer>
-    </div>
+    </main>
 
     <!-- ========================================================================
        JAVASCRIPT APPLICATION
@@ -948,7 +325,9 @@
          * - β = coefficients (power ratings + home-field advantage)
          * - ε = error term
          * 
-         * Solution: β = (X'X)^(-1) X'y
+         * Fit HFA on non-neutral games with team effects, then fit team ratings
+         * on all games after subtracting the fixed HFA at non-neutral sites.
+         * Each fit omits one reference team to identify relative team strengths.
          */
 
         'use strict';
@@ -1099,7 +478,7 @@
             /** @type {string} Current sort column ('rank', 'team', 'rating') */
             sortColumn: 'rank',
             /** @type {string} Current sort direction ('asc' or 'desc') */
-            sortDirection: 'desc',
+            sortDirection: 'asc',
         };
 
         // =========================================================================
@@ -1145,6 +524,7 @@
                 'status-message--loading',
                 'status-message--error',
                 'status-message--success',
+                'status-message--stale',
             );
 
             // Add appropriate type class and show message
@@ -1156,7 +536,8 @@
          * Hides the status message from view.
          */
         function hideStatus() {
-            elements.statusMessage.classList.remove('status-message--visible');
+            elements.statusMessage.className = 'status-message';
+            elements.statusMessage.textContent = ''; 
         }
 
         /**
@@ -1343,8 +724,7 @@
                 // Check for singular matrix
                 const pivot = augmented[col][col];
                 if (Math.abs(pivot) < 1e-12) {
-                    // Handle near-singular matrix by adding small regularization
-                    augmented[col][col] = 1e-10;
+                    throw new Error('This game range cannot identify all team ratings and home-field advantage. Select a wider week range.');
                 }
 
                 // Scale pivot row to make pivot element equal to 1
@@ -1437,35 +817,39 @@
         }
 
         /**
-         * Performs Ordinary Least Squares (OLS) regression.
-         * 
-         * Computes: β = (X'X)^(-1) X'y
-         * 
-         * This gives us the coefficients that minimize the sum of squared residuals.
-         * The first coefficient is the home-field advantage, and the remaining 32
-         * are the raw team power ratings.
-         * 
-         * @param {Array<Array<number>>} X - Design matrix (N × 33)
-         * @param {Array<number>} y - Target vector (N × 1)
-         * @returns {Array<number>} Coefficient vector (33 × 1)
+         * Two-stage least squares fitting (not instrumental-variable 2SLS).
+         * Fit HFA and team effects on non-neutral games only, then hold HFA
+         * fixed while fitting team effects to every game's adjusted margin.
+         * Omit the last team coefficient to identify the model; ratings are
+         * mean-centered later. Do not patch singular matrices with tiny pivots.
          */
         function performOLSRegression(X, y) {
-            // Step 1: Compute X transpose
+            const homeRows = X.map((row, i) => i).filter(i => X[i][0] === 1);
+            if (homeRows.length < NUM_TEAMS) {
+                throw new Error('Not enough non-neutral games to estimate home-field advantage. Select a wider week range.');
+            }
+            const firstStage = solveLeastSquares(
+                homeRows.map(i => X[i].slice(0, -1)),
+                homeRows.map(i => y[i]),
+            );
+            const homeFieldAdvantage = firstStage[0];
+            const teamRatings = solveLeastSquares(
+                X.map(row => row.slice(1, -1)),
+                y.map((margin, i) => margin - X[i][0] * homeFieldAdvantage),
+            );
+            return [homeFieldAdvantage, ...teamRatings, 0];
+        }
+
+        function solveLeastSquares(X, y) {
             const Xt = transposeMatrix(X);
-
-            // Step 2: Compute X'X (33 × 33 matrix)
-            const XtX = multiplyMatrices(Xt, X);
-
-            // Step 3: Compute X'y (33 × 1 vector)
-            const Xty = multiplyMatrixVector(Xt, y);
-
-            // Step 4: Compute (X'X)^(-1)
-            const XtXInv = invertMatrix(XtX);
-
-            // Step 5: Compute β = (X'X)^(-1) X'y
-            const beta = multiplyMatrixVector(XtXInv, Xty);
-
-            return beta;
+            const coefficients = multiplyMatrixVector(
+                invertMatrix(multiplyMatrices(Xt, X)),
+                multiplyMatrixVector(Xt, y),
+            );
+            if (!coefficients.every(Number.isFinite)) {
+                throw new Error('Could not calculate stable ratings for this game range.');
+            }
+            return coefficients;
         }
 
         /**
@@ -1974,12 +1358,21 @@
                         // Sort by strength of schedule
                         comparison = a.sos - b.sos;
                         break;
+                    case 'movementPoints':
+                    case 'movementRanks': {
+                        const field = sortColumn === 'movementPoints' ? 'points' : 'ranks';
+                        const left = movement.get(a.team)?.[field];
+                        const right = movement.get(b.team)?.[field];
+                        if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
+                        comparison = left - right;
+                        break;
+                    }
                     case 'rank':
                     default:
                         // Sort by original rank (rating descending)
                         comparison = b.rating - a.rating;
                         // For rank, we want desc to show #1 first
-                        return comparison;
+                        return (a.rating - b.rating) * -multiplier;
                 }
 
                 return comparison * multiplier;
@@ -2000,10 +1393,12 @@
 
                 if (column === appState.sortColumn) {
                     header.classList.add('sort-active');
+                    header.setAttribute('aria-sort', appState.sortDirection === 'asc' ? 'ascending' : 'descending');
                     indicator.textContent = appState.sortDirection === 'asc' ? '▲' : '▼';
                 } else {
                     header.classList.remove('sort-active');
-                    indicator.textContent = '▼';
+                    header.setAttribute('aria-sort', 'none');
+                    indicator.textContent = '↕';
                 }
             });
         }
@@ -2024,7 +1419,7 @@
                 appState.sortDirection = appState.sortDirection === 'asc' ? 'desc' : 'asc';
             } else {
                 appState.sortColumn = column;
-                appState.sortDirection = 'desc';
+                appState.sortDirection = ['rank', 'team'].includes(column) ? 'asc' : 'desc';
             }
 
             savePreferences();
@@ -2085,18 +1480,19 @@
             ${teamName}
             <span class="team-cell__abbr">${team}</span>
           </td>
+          <td class="rating-cell numeric-cell ${ratingClass}">
+            ${signedValue(rating)}
+          </td>
           <td class="record-cell">${wins}</td>
           <td class="record-cell">${losses}</td>
           <td class="record-cell">${ties}</td>
-          <td class="rating-cell numeric-cell ${ratingClass}">
-            ${rating >= 0 ? '+' : ''}${rating.toFixed(1)}
-          </td>
+          
           <td class="movement">${movementText(team, false)}</td><td class="movement">${movementText(team, true)}</td>
           <td class="rating-cell numeric-cell ${pointDiffClass}">
-            ${avgPointDiff >= 0 ? '+' : ''}${avgPointDiff.toFixed(1)}
+            ${signedValue(avgPointDiff)}
           </td>
           <td class="rating-cell numeric-cell ${sosClass}">
-            ${sos >= 0 ? '+' : ''}${sos.toFixed(1)}
+            ${signedValue(sos)}
           </td>
         `;
 
@@ -2122,6 +1518,7 @@
 
             // Update games count display
             elements.gamesCount.textContent = gamesCount;
+            document.getElementById('results-range').textContent = `${elements.seasonSelect.value}, W${elements.startWeekSelect.value}–${elements.endWeekSelect.value}`;
 
             // Update home field advantage display
             hfaValue.textContent = results.homeFieldAdvantage.toFixed(2);
@@ -2138,10 +1535,11 @@
 
             // Show results section with animation
             resultsSection.classList.add('results-section--visible');
-            document.getElementById('analysis-context').textContent = `Season ${elements.seasonSelect.value}, weeks ${elements.startWeekSelect.value}–${elements.endWeekSelect.value}. Using cached power ratings.`;
+            document.getElementById('analysis-context').textContent = `Season ${elements.seasonSelect.value}, weeks ${elements.startWeekSelect.value}–${elements.endWeekSelect.value}. Calculated power ratings.`;
             writeStored('ratings', {version:1, dataKey:ratingsDataKey(), season:elements.seasonSelect.value, start:elements.startWeekSelect.value, end:elements.endWeekSelect.value, gamesCount, results, movement:[...movement], note:document.getElementById('comparison-note').textContent});
             updateMatchup();
             showView();
+            syncFloatingHeader();
         }
 
         // =========================================================================
@@ -2182,7 +1580,7 @@
                 // Check if we have enough games
                 if (filteredGames.length < NUM_TEAMS) {
                     showStatus(
-                        `Not enough games found (${filteredGames.length}). Need at least ${NUM_TEAMS} games for analysis.`,
+                        `Only ${filteredGames.length} completed games in this range. Select more weeks; at least ${NUM_TEAMS} games are needed.`,
                         'error',
                     );
                     setButtonLoading(false);
@@ -2224,10 +1622,10 @@
                 renderResultsTable(results, validGames);
 
                 // Show success message briefly
-                showStatus('Power ratings calculated successfully!', 'success');
+                hideStatus();
 
                 // Hide status after delay
-                setTimeout(() => { hideStatus(); }, 2000);
+                
             } catch (error) {
                 console.error('Calculation error:', error);
                 showStatus(`Error: ${error.message}`, 'error');
@@ -2245,8 +1643,10 @@
             const endWeek = parseInt(elements.endWeekSelect.value, 10);
 
             // Auto-correct if start exceeds end
+            for (const option of elements.endWeekSelect.options) option.disabled = Number(option.value) < startWeek;
             if (startWeek > endWeek) {
                 elements.endWeekSelect.value = startWeek;
+                rangeAdjustment = `End week moved to ${startWeek} to match start week. `;
             }
         }
 
@@ -2297,7 +1697,7 @@
                     'success',
                 );
 
-                setTimeout(() => { hideStatus(); }, 3000);
+                
             } catch (error) {
                 console.error('File upload error:', error);
                 showStatus(`Error loading file: ${error.message}`, 'error');
@@ -2355,7 +1755,7 @@
                 );
 
                 // Hide message after delay
-                setTimeout(() => { hideStatus(); }, 3000);
+                
             } catch (error) {
                 console.error('Initialization error:', error);
                 showStatus(`Failed to load data automatically. Please upload a CSV file manually.`, 'error');
@@ -2381,8 +1781,9 @@
          */
         document.addEventListener('DOMContentLoaded', initializeV2);
 
-        const STORAGE_PREFIX = 'nfl-ratings-v2-';
+        const STORAGE_PREFIX = 'nfl-ratings-v3-';
         let movement = new Map();
+        let rangeAdjustment = ''; 
         function readStored(key) {
             try { return JSON.parse(localStorage.getItem(STORAGE_PREFIX + key)); }
             catch { return null; }
@@ -2395,7 +1796,7 @@
             const latest = games.reduce((a,b) => b.season > a.season || (b.season === a.season && b.week > a.week) ? b : a);
             document.getElementById('data-freshness').textContent = `Updated ${new Date(savedAt).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})} · Latest: ${latest.season}, Week ${latest.week}${cached ? ' · Cached' : ''}`;
             const sourceLabel = source === 'primary source' ? 'habitatring.com/games.csv' : source === 'fallback source' ? 'nflverse/nfldata on GitHub (fallback)' : source;
-            document.getElementById('data-source').textContent = `${sourceLabel} · ${games.length.toLocaleString()} completed games. ${cached ? 'Network unavailable; using saved data. ' : ''}Week ${latest.week} may be incomplete. Updated time is when this app loaded the data.`;
+            document.getElementById('data-source').textContent = `${sourceLabel} · ${games.length.toLocaleString()} completed games. ${cached ? 'Network unavailable; using saved data. ' : ''}${latest.season} Week ${latest.week} may be incomplete. Updated time is when this app loaded the data.`;
         }
         function rememberData(csv, source, games) {
             const savedAt = new Date().toISOString();
@@ -2403,10 +1804,12 @@
             describeData(games, source, savedAt, false);
         }
         function savePreferences() {
-            writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, sortColumn: appState.sortColumn, sortDirection: appState.sortDirection});
+            writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, sortColumn: appState.sortColumn, sortDirection: appState.sortDirection, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
         }
         function invalidateResults() {
             appState.currentRatings = [];
+            showStatus(`${rangeAdjustment}Selection changed. Calculate to update ratings.`, 'stale');
+            rangeAdjustment = '';
             elements.resultsSection.classList.remove('results-section--visible');
             writeStored('ratings', null);
             showView();
@@ -2435,11 +1838,15 @@
                 note.textContent = 'Weekly movement unavailable: the preceding range does not contain enough usable history.';
             }
         }
+        function signedValue(value) {
+            const rounded = Number(value.toFixed(1));
+            return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
+        }
         function movementText(team, ranks) {
             const item = movement.get(team);
             if (!item) return '—';
             const value = ranks ? item.ranks : item.points;
-            const formatted = ranks ? String(value) : value.toFixed(1);
+            const formatted = ranks ? String(value) : Number(value.toFixed(1)).toFixed(1);
             return (Number(formatted) > 0 ? '+' : '') + formatted;
         }
         function matchupMargin(a, b, venue, hfa) {
@@ -2449,7 +1856,13 @@
             const a = document.getElementById('matchup-a').value;
             const b = document.getElementById('matchup-b').value;
             const output = document.getElementById('matchup-result');
-            renderMatchupStats([a, b]);
+            const venue = document.getElementById('matchup-venue');
+            venue.options[1].textContent = `${TEAM_NAMES[a]} home`;
+            venue.options[2].textContent = `${TEAM_NAMES[b]} home`;
+            output.classList.toggle('is-notice', a === b);
+            document.querySelector('#matchup-view .table-container').hidden = a === b;
+            document.getElementById('mobile-matchup').hidden = a === b;
+            renderMatchupStats(a === b ? [] : [a, b]);
             if (a === b) { output.textContent = 'Choose two different teams.'; return; }
             const first = appState.currentRatings.find(t => t.team === a);
             const second = appState.currentRatings.find(t => t.team === b);
@@ -2461,11 +1874,11 @@
             for (const id of ['matchup-a', 'matchup-b']) {
                 const select = document.getElementById(id);
                 Object.entries(TEAM_NAMES).forEach(([value, label]) => select.add(new Option(label, value)));
-                select.addEventListener('change', updateMatchup);
+                select.addEventListener('change', () => { updateMatchup(); savePreferences(); });
             }
             document.getElementById('matchup-b').selectedIndex = 1;
-            document.getElementById('matchup-venue').addEventListener('change', updateMatchup);
-            document.getElementById('import-data').onclick = () => { elements.fileUploadSection.style.display = 'block'; elements.fileUpload.click(); };
+            document.getElementById('matchup-venue').addEventListener('change', () => { updateMatchup(); savePreferences(); });
+            document.getElementById('import-data').onclick = () => { elements.fileUpload.click(); };
             const refresh = document.getElementById('refresh-data');
             refresh.onclick = async () => {
                 refresh.disabled = true;
@@ -2489,25 +1902,74 @@
             const prefs = readStored('preferences');
             await initializeApp();
             if (prefs) {
+                for (const [id,value] of [['matchup-a',prefs.teamA],['matchup-b',prefs.teamB],['matchup-venue',prefs.venue]]) {
+                    const select = document.getElementById(id);
+                    if ([...select.options].some(o => o.value === value)) select.value = value;
+                }
                 for (const [select, value] of [[elements.seasonSelect,prefs.season],[elements.startWeekSelect,prefs.start],[elements.endWeekSelect,prefs.end]]) {
                     if ([...select.options].some(o => o.value === value)) select.value = value;
                 }
-                if (['rank','team','rating','wins','losses','ties','pointdiff','sos'].includes(prefs.sortColumn)) appState.sortColumn = prefs.sortColumn;
+                if (['rank','team','rating','wins','losses','ties','pointdiff','sos','movementPoints','movementRanks'].includes(prefs.sortColumn)) appState.sortColumn = prefs.sortColumn;
                 if (['asc','desc'].includes(prefs.sortDirection)) appState.sortDirection = prefs.sortDirection;
                 handleWeekChange();
             }
             const latest = latestSeasonWeek();
             if (!prefs || Number(elements.endWeekSelect.value) > latest) setLatestWeek();
+            rangeAdjustment = '';
             const saved = readStored('ratings');
             if (saved && saved.version === 1 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === NUM_TEAMS && saved.results.ratings.every(t => TEAM_NAMES[t.team] && Number.isFinite(t.rating)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
                 movement = new Map(saved.movement || []);
                 document.getElementById('comparison-note').textContent = saved.note || '';
                 renderResultsTable(saved.results, saved.gamesCount);
+                hideStatus();
+            } else if (appState.dataLoaded) {
+                // First visit or changed data: populate results without a manual click.
+                await handleCalculateClick();
             }
+            initializeFloatingHeader();
             showView();
             for (const select of [elements.seasonSelect,elements.startWeekSelect,elements.endWeekSelect]) {
                 select.addEventListener('change', () => { if (select === elements.seasonSelect) setLatestWeek(); savePreferences(); invalidateResults(); });
             }
+        }
+
+
+        function initializeFloatingHeader() {
+            const original = document.querySelector('#results-section .results-table');
+            const floating = document.createElement('div');
+            floating.className = 'floating-head';
+            floating.id = 'floating-head';
+            floating.hidden = true;
+            const table = document.createElement('table');
+            table.className = 'results-table';
+            table.setAttribute('aria-label', 'Power ratings column sorting');
+            table.append(original.tHead.cloneNode(true));
+            floating.append(table);
+            document.body.append(floating);
+            floating.onclick = handleSortClick;
+            window.addEventListener('scroll', syncFloatingHeader, {passive:true});
+            window.addEventListener('resize', syncFloatingHeader);
+            window.addEventListener('hashchange', syncFloatingHeader);
+            original.parentElement.addEventListener('scroll', syncFloatingHeader, {passive:true});
+            syncFloatingHeader();
+        }
+        function syncFloatingHeader() {
+            const floating = document.getElementById('floating-head');
+            if (!floating) return;
+            const original = document.querySelector('#results-section .results-table');
+            const wrapper = original.parentElement;
+            const rect = wrapper.getBoundingClientRect();
+            const height = original.tHead.getBoundingClientRect().height;
+            const visible = !elements.resultsSection.hidden && appState.currentRatings.length && rect.top < 0 && rect.bottom > height;
+            floating.hidden = !visible;
+            if (!visible) return;
+            floating.style.left = `${rect.left}px`;
+            floating.style.width = `${rect.width}px`;
+            floating.firstElementChild.style.width = `${original.getBoundingClientRect().width}px`;
+            [...original.tHead.rows[0].cells].forEach((cell,index) => {
+                floating.querySelectorAll('th')[index].style.width = `${cell.getBoundingClientRect().width}px`;
+            });
+            floating.scrollLeft = wrapper.scrollLeft;
         }
 
         function ratingsDataKey() {
@@ -2519,10 +1981,14 @@
         function setLatestWeek() {
             elements.endWeekSelect.value = String(latestSeasonWeek());
             if (Number(elements.startWeekSelect.value) > Number(elements.endWeekSelect.value)) elements.startWeekSelect.value = '1';
+            handleWeekChange();
         }
         function showView() {
             const matchup = location.hash === '#matchup';
             const ready = appState.currentRatings.length > 0;
+            document.getElementById('empty-state').hidden = matchup || ready;
+            syncFloatingHeader();
+            elements.statusMessage.hidden = matchup;
             document.querySelector('.control-panel').hidden = matchup;
             elements.resultsSection.hidden = matchup;
             document.getElementById('matchup-view').hidden = !matchup || !ready;
@@ -2532,16 +1998,49 @@
                 if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
             }
         }
+
+        function renderMobileMatchup(teams) {
+            const container = document.getElementById('mobile-matchup');
+            container.replaceChildren();
+            if (teams.length !== 2) return;
+            const data = teams.map(team => appState.currentRatings.find(t => t.team === team));
+            if (data.some(t => !t)) return;
+            const table = document.createElement('table');
+            const caption = table.createCaption();
+            caption.textContent = 'Team comparison';
+            const head = table.createTHead().insertRow();
+            for (const label of ['Metric', ...teams]) {
+                const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; head.append(th);
+            }
+            const body = table.createTBody();
+            const metrics = [
+                ['Rank', t => appState.currentRatings.filter(other => other.rating > t.rating).length + 1],
+                ['Rating', t => signedValue(t.rating)],
+                ['Record (W–L–T)', t => `${t.wins}–${t.losses}–${t.ties}`],
+                ['Δ Rating', t => movementText(t.team,false)],
+                ['Δ Rank', t => movementText(t.team,true)],
+                ['Pt Diff', t => signedValue(t.avgPointDiff)],
+                ['SOS', t => signedValue(t.sos)]
+            ];
+            for (const [label, value] of metrics) {
+                const row = body.insertRow();
+                const th = document.createElement('th'); th.scope = 'row'; th.textContent = label; row.append(th);
+                data.forEach(team => { row.insertCell().textContent = value(team); });
+            }
+            container.append(table);
+        }
+
         function renderMatchupStats(teams) {
             const body = document.getElementById('matchup-stats');
             body.replaceChildren();
+            renderMobileMatchup(teams);
             for (const abbr of teams) {
                 const team = appState.currentRatings.find(t => t.team === abbr);
                 if (!team) continue;
                 const row = document.createElement('tr');
                 const rank = appState.currentRatings.filter(t => t.rating > team.rating).length + 1;
-                const signed = n => `${n > 0 ? '+' : ''}${n.toFixed(1)}`;
-                for (const value of [rank, team.teamName, team.wins, team.losses, team.ties, signed(team.rating), movementText(abbr,false), movementText(abbr,true), signed(team.avgPointDiff), signed(team.sos)]) {
+                const signed = signedValue;
+                for (const value of [rank, team.teamName, signed(team.rating), team.wins, team.losses, team.ties, movementText(abbr,false), movementText(abbr,true), signed(team.avgPointDiff), signed(team.sos)]) {
                     const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
                 }
                 body.appendChild(row);

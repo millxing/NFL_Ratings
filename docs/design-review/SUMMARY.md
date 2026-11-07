@@ -1,6 +1,6 @@
 # Design review summary
 
-Completed three rounds on NFLPowerRatings-v3.html. Both evaluators used standard service: Opus 5.5 Light and Astra Medium. Original and v2 app files were not changed. Baseline retained in baseline.html.
+Completed three rounds on NFLPowerRatings-v3.html. Both evaluators used standard service: Opus 5.5 Light and Astra Medium. Original and v2 app files were not changed. The baseline and earlier app versions are retained in git history. The current app is NFLpowerRatings.html.
 
 | Overall | Round 1 | Round 2 | Round 3 |
 |---|---:|---:|---:|
