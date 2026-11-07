@@ -6,13 +6,13 @@ NFL team power ratings and matchup projections based on scoring margin and stren
 
 ## Use locally
 
-Open `NFLpowerRatings.html` in a browser, or serve the project:
+Open `NFLPowerRatings.html` in a browser, or serve the project:
 
 ```sh
 python3 -m http.server 8765
 ```
 
-Visit http://localhost:8765/. The root page opens `NFLpowerRatings.html`. Ratings calculate automatically after game data loads; valid saved results are restored on later visits. Earlier versions remain in git history.
+Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Ratings calculate automatically after game data loads; valid saved results are restored on later visits. Earlier versions remain in git history.
 
 The app loads completed game data from remote sources, supports CSV import, and stores preferences and cached results in browser storage. Source details are available in the app.
 

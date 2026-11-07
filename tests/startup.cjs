@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const html = fs.readFileSync(require('node:path').join(__dirname, '../NFLpowerRatings.html'), 'utf8');
+const html = fs.readFileSync(require('node:path').join(__dirname, '../NFLPowerRatings.html'), 'utf8');
 
 async function startup({ loaded = true, saved = false } = {}) {
     const nodes = new Map();
