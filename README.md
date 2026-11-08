@@ -12,9 +12,11 @@ Open `NFLPowerRatings.html` in a browser, or serve the project:
 python3 -m http.server 8765
 ```
 
-Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Ratings calculate automatically after game data loads and whenever Season, Start Week, or End Week changes; valid saved results are restored on later visits. Week labels omit Complete; Partial appears only for the current season, and weeks with No results remain labelled and disabled. The latest available week and its recorded/scheduled game counts appear beside the filters. Imported files without a verified full schedule show Completeness unknown. Data checked reports retrieval time, not when game results were published. Earlier versions remain in git history.
+Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Ratings calculate automatically after game data loads and whenever Season, Start Week, or End Week changes; valid saved results are restored on later visits. Week labels omit Complete; Partial appears only for the current season, and weeks with No results remain labelled and disabled. Drag the manual week scrubber or use its previous/next arrows to change End Week while keeping Start Week fixed. Keyboard arrows step the focused slider; weeks without results are skipped. The scrubber and End Week dropdown stay in sync, and partial weeks remain labelled. The latest available week and its recorded/scheduled game counts appear beside the filters. Imported files without a verified full schedule show Completeness unknown. Data checked reports retrieval time, not when game results were published. Earlier versions remain in git history.
 
 The app loads completed game data from remote sources, supports CSV import, and stores preferences and cached results in browser storage. Source details are available in the app.
+
+The matchup calculator includes weekly schedule predictions. It defaults to the first week with unplayed games (or the final scheduled week after the season), shows home/neutral venue and predicted margins, and lets you select a game to populate the calculator. Weekly predictions always use that season's results from Week 1 through the preceding week, excluding all selected-week results. The actual ratings cutoff is displayed. Selecting a game updates the calculator's rating range to match its prediction. Early weeks without enough history show predictions as unavailable; imported schedules may be incomplete.
 
 ## Verification
 

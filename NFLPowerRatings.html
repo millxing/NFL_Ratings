@@ -85,6 +85,14 @@
         .status-message--error { border-color:var(--negative); color:var(--negative); }
         .status-message--success { border-color:var(--positive); }
         .week-availability { margin:0; color:var(--muted); font-size:14px; }
+        .week-scrubber { border-top:1px solid var(--line); padding-top:14px; min-width:0; }
+        .week-scrubber__label { display:block; margin-bottom:8px; font-size:14px; font-weight:600; }
+        .week-scrubber__controls { display:flex; align-items:center; gap:12px; }
+        .week-scrubber input { flex:1; min-width:0; height:44px; margin:0; accent-color:var(--accent); cursor:pointer; }
+        .week-step { flex:none; width:44px; height:44px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--text); font-size:20px; }
+        .week-step:hover:enabled { background:var(--raised); }
+        .week-step:disabled,.week-scrubber input:disabled { cursor:default; }
+        .week-scrubber__bounds { display:flex; justify-content:space-between; gap:12px; margin:0 56px; color:var(--muted); font-size:12px; }
         .range-adjustment { margin:0; font-size:14px; color:var(--accent); }
         .range-adjustment:empty { display:none; }
         .empty-state { color:var(--muted); padding:24px 0; margin:0; }
@@ -138,6 +146,17 @@
         #analysis-context { margin:6px 0 20px; }
         #matchup-result { padding:20px; margin:24px 0; background:var(--surface); border-left:3px solid var(--accent); font-size:24px; font-weight:600; }
         #matchup-result.is-notice { font-size:16px; color:var(--muted); }
+        .weekly-schedule { margin:24px 0 32px; padding:18px; border:1px solid var(--line); border-radius:8px; background:var(--surface); }
+        .weekly-schedule__header { display:flex; align-items:end; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+        .weekly-schedule__header .form-field { min-width:160px; }
+        .weekly-schedule__note { font-size:14px; color:var(--muted); margin:12px 0; }
+        .weekly-games { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:10px; }
+        .weekly-game { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; padding:14px; border:1px solid var(--line); border-radius:5px; color:var(--text); background:var(--bg); font:inherit; }
+        .weekly-game:hover:enabled { border-color:var(--accent); }
+        .weekly-game:disabled { opacity:1; cursor:default; }
+        .weekly-game__date { font-size:12px; color:var(--muted); }
+        .weekly-game__teams { font-size:14px; font-weight:600; }
+        .weekly-game__prediction { color:var(--accent); font-size:14px; }
         .footer { padding-top:16px; color:var(--muted); font-size:13px; }
         .license-notice { margin:0; line-height:1.7; }
         .data-status { border-top:1px solid var(--line); margin-top:28px; padding-top:16px; color:var(--muted); font-size:13px; }
@@ -242,6 +261,15 @@
                     </select>
                 </div>
             </div>
+            <div class="week-scrubber">
+                <label for="end-week-scrubber" id="week-scrubber-label" class="week-scrubber__label">Through week —</label>
+                <div class="week-scrubber__controls">
+                    <button id="previous-week" class="week-step" type="button" aria-label="Previous end week" disabled>←</button>
+                    <input id="end-week-scrubber" type="range" min="0" max="0" value="0" step="1" aria-valuetext="No results available" disabled>
+                    <button id="next-week" class="week-step" type="button" aria-label="Next end week" disabled>→</button>
+                </div>
+                <div class="week-scrubber__bounds" aria-hidden="true"><span id="scrubber-first-week"></span><span id="scrubber-last-week"></span></div>
+            </div>
             <p id="week-availability" class="week-availability" role="status" aria-live="polite">Loading game schedule…</p>
             <p id="range-adjustment" class="range-adjustment" role="status" aria-live="polite"></p>
         </section>
@@ -293,6 +321,16 @@
 
             <section id="matchup-view" hidden class="v2-panel" aria-label="Matchup calculator">
               <h2>Matchup calculator</h2>
+              <section class="weekly-schedule" aria-labelledby="weekly-title">
+                <div class="weekly-schedule__header">
+                  <h2 id="weekly-title">Weekly predictions</h2>
+                  <div class="form-field"><label for="schedule-week" class="form-field__label">Schedule week</label><select id="schedule-week" class="form-field__select" disabled></select></div>
+                </div>
+                <p id="schedule-context" class="weekly-schedule__note" role="status"></p>
+                <div id="weekly-games" class="weekly-games"></div>
+              </section>
+              <div id="custom-matchup">
+              <h2>Compare teams</h2>
               <p id="analysis-context"></p>
               <div class="controls-grid">
                 <div class="form-field"><label for="matchup-a" class="form-field__label">Team A</label><select id="matchup-a" class="form-field__select"></select></div>
@@ -302,6 +340,7 @@
               <p id="matchup-result" aria-live="polite"></p>
               <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>Rating</th><th>W</th><th>L</th><th>T</th><th>Δ Rating</th><th>Δ Rank</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
               <div class="mobile-matchup" id="mobile-matchup"></div>
+              </div>
             </section>
 
         <section class="data-status" aria-label="Data status">
@@ -569,6 +608,8 @@
             document.getElementById('refresh-data').disabled = loading;
             document.getElementById('import-data').disabled = loading;
             if (!loading && appState.dataLoaded) updateWeekAvailability();
+            syncWeekScrubber();
+            if (location.hash === '#matchup') renderWeeklySchedule();
         }
 
         // =========================================================================
@@ -1557,7 +1598,7 @@
         // =========================================================================
 
         let calculationVersion = 0;
-        async function calculateRatings() {
+        async function calculateRatings({ immediate = false } = {}) {
             const version = ++calculationVersion;
             if (!appState.dataLoaded) return;
             invalidateResults();
@@ -1573,7 +1614,7 @@
             showStatus('Updating ratings…', 'loading');
             try {
                 // Coalesce quick changes and let the browser paint loading feedback.
-                await new Promise(resolve => setTimeout(resolve, 120));
+                if (!immediate) await new Promise(resolve => setTimeout(resolve, 120));
                 if (version !== calculationVersion) return;
                 const filteredGames = filterGames(appState.gamesData, season, startWeek, endWeek);
                 if (filteredGames.length < NUM_TEAMS) {
@@ -1764,6 +1805,7 @@
                     option.disabled = !week?.recorded || (select === end && number < Number(start.value));
                 }
             }
+            syncWeekScrubber();
             const summary = document.getElementById('week-availability');
             if (latest === undefined) {
                 summary.textContent = `${season}: no results available yet.`;
@@ -1776,6 +1818,36 @@
                 return `${WEEK_LABELS[number]}${status ? ` · ${status}` : ''} · ${count} ${appState.completeSchedule && week.total ? 'games' : week.recorded === 1 ? 'game' : 'games'} recorded`;
             };
             summary.textContent = `${season} latest results: ${describe(latest)}.${Number(end.value) !== latest ? ` Selected end: ${describe(Number(end.value))}.` : ''}`;
+        }
+        // Slider positions map to selectable weeks so gaps and future weeks are skipped.
+        function scrubberWeeks() {
+            return [...elements.endWeekSelect.options].filter(option => !option.disabled).map(option => option.value);
+        }
+        function syncWeekScrubber() {
+            const weeks = scrubberWeeks();
+            const index = weeks.indexOf(elements.endWeekSelect.value);
+            const disabled = appState.loadingData || !appState.dataLoaded || elements.endWeekSelect.disabled || index < 0;
+            const slider = document.getElementById('end-week-scrubber');
+            const selected = [...elements.endWeekSelect.options].find(option => option.value === elements.endWeekSelect.value);
+            const description = disabled ? 'No results available' : selected.textContent;
+            slider.max = String(Math.max(0, weeks.length - 1));
+            slider.value = String(Math.max(0, index));
+            slider.disabled = disabled || weeks.length < 2;
+            slider.setAttribute('aria-valuetext', description);
+            document.getElementById('week-scrubber-label').textContent = disabled ? 'Through week —' : `Through ${description}`;
+            document.getElementById('previous-week').disabled = disabled || index <= 0;
+            document.getElementById('next-week').disabled = disabled || index >= weeks.length - 1;
+            document.getElementById('scrubber-first-week').textContent = disabled ? '' : WEEK_LABELS[weeks[0]];
+            document.getElementById('scrubber-last-week').textContent = disabled ? '' : WEEK_LABELS[weeks.at(-1)];
+        }
+        function scrubToWeek(index) {
+            const weeks = scrubberWeeks();
+            if (appState.loadingData || !appState.dataLoaded || elements.endWeekSelect.disabled || !weeks[index] || weeks[index] === elements.endWeekSelect.value) return;
+            elements.endWeekSelect.value = weeks[index];
+            document.getElementById('range-adjustment').textContent = '';
+            updateWeekAvailability();
+            savePreferences();
+            return calculateRatings({ immediate: true });
         }
         function savePreferences() {
             writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, sortColumn: appState.sortColumn, sortDirection: appState.sortDirection, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
@@ -1820,6 +1892,85 @@
             const value = ranks ? item.ranks : item.points;
             const formatted = ranks ? String(value) : Number(value.toFixed(1)).toFixed(1);
             return (Number(formatted) > 0 ? '+' : '') + formatted;
+        }
+        let scheduleSeason = null;
+        let forecastCache = null;
+        function weeklyForecast(season, week) {
+            if (forecastCache?.data === appState.gamesData && forecastCache.season === season && forecastCache.week === week) return forecastCache;
+            const games = filterGames(appState.gamesData, season, 1, week - 1);
+            const forecast = {data: appState.gamesData, season, week, throughWeek: Math.max(0, ...games.map(game => game.week)), results: null, error: ''};
+            try {
+                if (games.length < NUM_TEAMS) throw new Error('Not enough earlier games to calculate predictions.');
+                const {X, y, validGames} = buildDesignMatrix(games);
+                if (validGames < NUM_TEAMS) throw new Error('Not enough usable earlier games to calculate predictions.');
+                forecast.results = calculatePowerRatings(performOLSRegression(X, y), games);
+            } catch (error) { forecast.error = error.message; }
+            forecastCache = forecast;
+            return forecast;
+        }
+        function schedulePrediction(game, forecast) {
+            const away = normalizeTeamAbbr(game.away_team);
+            const home = normalizeTeamAbbr(game.home_team);
+            const first = forecast.results?.ratings.find(team => team.team === away);
+            const second = forecast.results?.ratings.find(team => team.team === home);
+            if (!first || !second || !['Home', 'Neutral'].includes(game.location)) return null;
+            const venue = game.location === 'Neutral' ? 'neutral' : 'b';
+            const margin = matchupMargin(first.rating, second.rating, venue, forecast.results.homeFieldAdvantage);
+            return {away, home, venue, margin, text: Math.abs(margin) < 0.05 ? 'Even matchup' : `${margin > 0 ? first.teamName : second.teamName} by ${Math.abs(margin).toFixed(1)} points`};
+        }
+        function renderWeeklySchedule() {
+            const season = Number(elements.seasonSelect.value);
+            const games = appState.schedule.filter(game => game.season === season);
+            const weeks = [...new Set(games.map(game => game.week))].sort((a,b) => a-b);
+            const select = document.getElementById('schedule-week');
+            const previous = Number(select.value);
+            const defaultWeek = weeks.find(week => games.some(game => game.week === week && game.home_score === null)) ?? weeks.at(-1);
+            const week = scheduleSeason === season && weeks.includes(previous) ? previous : defaultWeek;
+            scheduleSeason = season;
+            select.replaceChildren();
+            for (const number of weeks) select.add(new Option(WEEK_LABELS[number], number));
+            select.value = String(week ?? '');
+            select.disabled = appState.loadingData || !weeks.length;
+            document.getElementById('weekly-title').textContent = `${season || ''} weekly predictions`.trim();
+            const container = document.getElementById('weekly-games');
+            container.replaceChildren();
+            const context = document.getElementById('schedule-context');
+            if (!weeks.length) { context.textContent = 'No schedule available for this season. Import a CSV with scheduled games or refresh the data.'; return; }
+            const forecast = weeklyForecast(season, week);
+            context.textContent = forecast.results
+                ? `Using ${season} ratings through ${WEEK_LABELS[forecast.throughWeek]}, starting at Week 1. Selected-week results are excluded. Select a game to compare teams using these ratings.`
+                : `Predictions unavailable: ${forecast.error}`;
+            if (!appState.completeSchedule) context.textContent += ' The imported schedule may be incomplete.';
+            for (const game of games.filter(game => game.week === week).sort((a,b) => a.gameday.localeCompare(b.gameday))) {
+                const prediction = schedulePrediction(game, forecast);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'weekly-game';
+                button.disabled = !prediction || appState.loadingData;
+                const date = document.createElement('span');
+                date.className = 'weekly-game__date';
+                const parsed = /^\d{4}-\d{2}-\d{2}$/.test(game.gameday) ? new Date(`${game.gameday}T12:00:00Z`) : null;
+                date.textContent = `${parsed ? parsed.toLocaleDateString([], {month:'short', day:'numeric', timeZone:'UTC'}) : 'Date TBD'}${game.home_score !== null ? ' · Completed' : ''}`;
+                const teams = document.createElement('span');
+                teams.className = 'weekly-game__teams';
+                teams.textContent = `${TEAM_NAMES[TEAM_ALIASES[game.away_team] || game.away_team] || game.away_team} ${game.location === 'Neutral' ? 'vs.' : 'at'} ${TEAM_NAMES[TEAM_ALIASES[game.home_team] || game.home_team] || game.home_team}${game.location === 'Neutral' ? ' · Neutral' : ''}`;
+                const result = document.createElement('span');
+                result.className = 'weekly-game__prediction';
+                result.textContent = prediction?.text || 'Prediction unavailable';
+                button.append(date, teams, result);
+                if (prediction) button.addEventListener('click', async () => {
+                    if (appState.loadingData) return;
+                    document.getElementById('matchup-a').value = prediction.away;
+                    document.getElementById('matchup-b').value = prediction.home;
+                    document.getElementById('matchup-venue').value = prediction.venue;
+                    elements.startWeekSelect.value = '1';
+                    elements.endWeekSelect.value = String(forecast.throughWeek);
+                    updateWeekAvailability();
+                    await calculateRatings({immediate: true});
+                    document.getElementById('custom-matchup').scrollIntoView({behavior:'auto', block:'start'});
+                });
+                container.appendChild(button);
+            }
         }
         function matchupMargin(a, b, venue, hfa) {
             return a - b + (venue === 'a' ? hfa : venue === 'b' ? -hfa : 0);
@@ -1877,6 +2028,11 @@
             for (const select of [elements.seasonSelect,elements.startWeekSelect,elements.endWeekSelect]) {
                 select.addEventListener('change', handleFilterChange);
             }
+            document.getElementById('end-week-scrubber').addEventListener('input', event => scrubToWeek(Number(event.target.value)));
+            for (const [id, step] of [['previous-week', -1], ['next-week', 1]]) {
+                document.getElementById(id).addEventListener('click', () => scrubToWeek(scrubberWeeks().indexOf(elements.endWeekSelect.value) + step));
+            }
+            document.getElementById('schedule-week').addEventListener('change', renderWeeklySchedule);
             const prefs = readStored('preferences');
             await initializeApp();
             if (prefs) {
@@ -1967,7 +2123,9 @@
             elements.statusMessage.hidden = false;
             document.querySelector('.control-panel').hidden = matchup;
             elements.resultsSection.hidden = matchup;
-            document.getElementById('matchup-view').hidden = !matchup || !ready;
+            document.getElementById('matchup-view').hidden = !matchup;
+            document.getElementById('custom-matchup').hidden = !ready;
+            if (matchup) renderWeeklySchedule();
             document.getElementById('view-message').hidden = !matchup || ready;
             for (const [id, active] of [['ratings-link', !matchup], ['matchup-link', matchup]]) {
                 const link = document.getElementById(id);

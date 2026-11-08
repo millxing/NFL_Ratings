@@ -28,15 +28,19 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
         set innerHTML(value) { this.children = []; this.options = []; }
         appendChild(child) { this.children.push(child); if (this.tag === 'select') { this.options.push(child); if (child.selected) this.value = child.value; } return child; }
         add(option) { this.appendChild(option); }
+        append(...children) { children.forEach(child => this.appendChild(child)); }
+        replaceChildren(...children) { this.children = []; this.options = []; this.append(...children); }
+        scrollIntoView() {}
         addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); }
-        async change(value) { this.value = value; await Promise.all((this.listeners.change ?? []).map(fn => fn({target:this}))); }
+        async dispatch(type) { await Promise.all((this.listeners[type] ?? []).map(fn => fn({target:this}))); }
+        async change(value) { this.value = value; await this.dispatch('change'); }
         setAttribute(key,value) { this.attributes[key] = String(value); }
         getAttribute(key) { return this.attributes[key]; }
         removeAttribute(key) { delete this.attributes[key]; }
         get classList() { const node = this; return {add(...names) { node.className = [...new Set([...node.className.split(' ').filter(Boolean),...names])].join(' '); }, remove(...names) { node.className = node.className.split(' ').filter(v => !names.includes(v)).join(' '); }}; }
     }
     const nodes = new Map();
-    const selects = ['season-select','start-week-select','end-week-select','matchup-a','matchup-b','matchup-venue'];
+    const selects = ['season-select','start-week-select','end-week-select','matchup-a','matchup-b','matchup-venue','schedule-week'];
     const node = id => { if (!nodes.has(id)) nodes.set(id,new Node(selects.includes(id) ? 'select' : '')); return nodes.get(id); };
     const options = ['neutral','a','b'];
     options.forEach(value => { const option = new Node(); option.value = value; node('matchup-venue').add(option); });
@@ -160,6 +164,95 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.match(failed.node('status-message').textContent,/Error loading file/);
     assert.equal(failed.run('appState.currentRatings.length'),32,'Rejected imports preserve existing results');
 
+    const scrub = harness({csvText:currentCSV});
+    await scrub.context.initializeV2();
+    assert.equal(scrub.node('end-week-scrubber').value,'8');
+    assert.equal(scrub.node('end-week-scrubber').max,'8');
+    assert.match(scrub.node('week-scrubber-label').textContent,/Through Week 9 — Partial/);
+    assert.equal(scrub.node('next-week').disabled,true);
+    await scrub.node('previous-week').dispatch('click');
+    assert.equal(scrub.node('end-week-select').value,'8');
+    assert.equal(scrub.context.renders.at(-1).gamesCount,128);
+    assert.equal(scrub.node('end-week-scrubber').value,'7');
+    assert.equal(scrub.node('next-week').disabled,false);
+    scrub.run("appState.sortColumn = 'team'; appState.sortDirection = 'asc'");
+    scrub.node('end-week-scrubber').value = '5';
+    await scrub.node('end-week-scrubber').dispatch('input');
+    assert.equal(scrub.node('end-week-select').value,'6');
+    assert.equal(scrub.node('start-week-select').value,'1');
+    assert.equal(scrub.context.renders.at(-1).gamesCount,96);
+    assert.equal(scrub.run('appState.sortColumn'),'team');
+    assert.equal(scrub.run("readStored('preferences').end"),'6');
+    await scrub.node('end-week-select').change('7');
+    assert.equal(scrub.node('end-week-scrubber').value,'6','Dropdown updates slider');
+    await scrub.node('start-week-select').change('3');
+    assert.equal(scrub.node('end-week-scrubber').max,'6','Start week constrains scrub range');
+    scrub.node('end-week-scrubber').value = '0';
+    await scrub.node('end-week-scrubber').dispatch('input');
+    assert.equal(scrub.node('end-week-select').value,'3');
+    assert.equal(scrub.node('previous-week').disabled,true);
+    assert.match(scrub.node('status-message').textContent,/Only 16 recorded games/);
+    assert.equal(scrub.run('appState.currentRatings.length'),0);
+    await scrub.node('next-week').dispatch('click');
+    assert.equal(scrub.context.renders.at(-1).gamesCount,32);
+    const pendingChange = scrub.node('end-week-select').change('8');
+    await scrub.node('previous-week').dispatch('click');
+    await pendingChange;
+    assert.equal(scrub.context.renders.at(-1).end,'7','Scrubbing cancels an older delayed calculation');
+    const gaps = harness({csvText:currentCSV.split('\n').filter(line => !line.startsWith('2025_5_')).join('\n')});
+    await gaps.context.initializeV2();
+    await gaps.node('end-week-select').change('6');
+    await gaps.node('previous-week').dispatch('click');
+    assert.equal(gaps.node('end-week-select').value,'4','Scrubbing skips weeks without results');
+    await gaps.node('next-week').dispatch('click');
+    assert.equal(gaps.node('end-week-select').value,'6');
+    gaps.run('setDataLoading(true)');
+    assert.equal(gaps.node('end-week-scrubber').disabled,true);
+    assert.equal(gaps.node('previous-week').disabled,true);
+    assert.equal(gaps.node('next-week').disabled,true);
+    await h.node('season-select').change('2026');
+    assert.equal(h.node('end-week-scrubber').disabled,true);
+    assert.equal(h.node('previous-week').disabled,true);
+    assert.equal(h.node('next-week').disabled,true);
+    assert.equal(h.node('week-scrubber-label').textContent,'Through week —');
+
+    const weekly = harness({csvText:currentCSV});
+    await weekly.context.initializeV2();
+    weekly.run("location.hash = '#matchup'; showView()");
+    assert.equal(weekly.node('schedule-week').value,'9','Default to current partially played week');
+    assert.equal(weekly.node('weekly-games').children.length,16);
+    assert.match(weekly.node('schedule-context').textContent,/ratings through Week 8/);
+    assert.match(weekly.node('schedule-context').textContent,/Selected-week results are excluded/);
+    assert.match(weekly.node('weekly-games').children[0].children[0].textContent,/Completed/);
+    const forecast = weekly.context.weeklyForecast(2025,9);
+    assert.equal(forecast.throughWeek,8);
+    const initialForecast = JSON.stringify(forecast.results);
+    weekly.run("appState.gamesData = appState.gamesData.map(game => game.week === 9 ? {...game, home_score:99, away_score:0} : game)");
+    assert.equal(JSON.stringify(weekly.context.weeklyForecast(2025,9).results),initialForecast,'Selected week scores cannot affect its predictions');
+    const game = weekly.run('appState.schedule.find(game => game.week === 9)');
+    const homePrediction = weekly.context.schedulePrediction({...game,location:'Home'},forecast);
+    const neutralPrediction = weekly.context.schedulePrediction({...game,location:'Neutral'},forecast);
+    assert.ok(Math.abs(neutralPrediction.margin - homePrediction.margin - forecast.results.homeFieldAdvantage) < 1e-8,'Neutral sites exclude HFA');
+    await weekly.node('schedule-week').change('6');
+    assert.match(weekly.node('schedule-context').textContent,/ratings through Week 5/);
+    const scheduledGame = weekly.run('appState.schedule.find(game => game.week === 6)');
+    await weekly.node('weekly-games').children[0].dispatch('click');
+    assert.equal(weekly.node('matchup-a').value,scheduledGame.away_team);
+    assert.equal(weekly.node('matchup-b').value,scheduledGame.home_team);
+    assert.equal(weekly.node('matchup-venue').value,'b');
+    assert.equal(weekly.node('start-week-select').value,'1');
+    assert.equal(weekly.node('end-week-select').value,'5');
+    assert.equal(weekly.context.renders.at(-1).gamesCount,80);
+    await weekly.node('schedule-week').change('1');
+    assert.match(weekly.node('schedule-context').textContent,/Predictions unavailable: Not enough earlier games/);
+    assert.ok(weekly.node('weekly-games').children.every(button => button.disabled));
+    await weekly.node('schedule-week').change('10');
+    assert.equal(weekly.node('weekly-games').children.length,16,'Upcoming weeks remain selectable without scores');
+    assert.match(weekly.node('schedule-context').textContent,/ratings through Week 9/);
+    weekly.run("appState.gamesData = []; appState.schedule = []; renderWeeklySchedule()");
+    assert.equal(weekly.node('schedule-week').disabled,true);
+    assert.match(weekly.node('schedule-context').textContent,/No schedule available/);
+
     const future = `${header}\nfuture,2025,10,2099-01-01,ARI,ATL,21,14,Home`;
     assert.equal(h.context.parseCSV(future).length,0,'Future-dated scores are not results');
     assert.equal(h.context.parseCSV(future,true).length,1,'Future games remain in schedule');
@@ -168,5 +261,5 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(h.context.isValidScore('Infinity'),false);
     assert.equal(h.context.isValidScore('-1'),false);
     assert.ok(!html.includes('id="calculate-btn"'));
-    console.log('PASS: schedule completeness, unavailable weeks, automatic season/start/end updates, rapid-change cancellation, saved/offline startup, import recovery, errors, and future-date guards.');
+    console.log('PASS: schedule completeness, unavailable weeks, automatic season/start/end updates, manual scrubbing and bounds, weekly forecasts without hindsight, scheduled-game selection, rapid-change cancellation, saved/offline startup, import recovery, errors, and future-date guards.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
