@@ -1936,12 +1936,14 @@
             container.replaceChildren();
             const context = document.getElementById('schedule-context');
             if (!weeks.length) { context.textContent = 'No schedule available for this season. Import a CSV with scheduled games or refresh the data.'; return; }
+            const upcoming = games.filter(game => game.week === week && game.home_score === null && game.away_score === null);
+            if (!upcoming.length) { context.textContent = 'No unplayed games remaining in this week.'; return; }
             const forecast = weeklyForecast(season, week);
             context.textContent = forecast.results
                 ? `Using ${season} ratings through ${WEEK_LABELS[forecast.throughWeek]}, starting at Week 1. Selected-week results are excluded. Select a game to compare teams using these ratings.`
                 : `Predictions unavailable: ${forecast.error}`;
             if (!appState.completeSchedule) context.textContent += ' The imported schedule may be incomplete.';
-            for (const game of games.filter(game => game.week === week).sort((a,b) => a.gameday.localeCompare(b.gameday))) {
+            for (const game of upcoming.sort((a,b) => a.gameday.localeCompare(b.gameday))) {
                 const prediction = schedulePrediction(game, forecast);
                 const button = document.createElement('button');
                 button.type = 'button';
@@ -1950,7 +1952,7 @@
                 const date = document.createElement('span');
                 date.className = 'weekly-game__date';
                 const parsed = /^\d{4}-\d{2}-\d{2}$/.test(game.gameday) ? new Date(`${game.gameday}T12:00:00Z`) : null;
-                date.textContent = `${parsed ? parsed.toLocaleDateString([], {month:'short', day:'numeric', timeZone:'UTC'}) : 'Date TBD'}${game.home_score !== null ? ' · Completed' : ''}`;
+                date.textContent = parsed ? parsed.toLocaleDateString([], {month:'short', day:'numeric', timeZone:'UTC'}) : 'Date TBD';
                 const teams = document.createElement('span');
                 teams.className = 'weekly-game__teams';
                 teams.textContent = `${TEAM_NAMES[TEAM_ALIASES[game.away_team] || game.away_team] || game.away_team} ${game.location === 'Neutral' ? 'vs.' : 'at'} ${TEAM_NAMES[TEAM_ALIASES[game.home_team] || game.home_team] || game.home_team}${game.location === 'Neutral' ? ' · Neutral' : ''}`;

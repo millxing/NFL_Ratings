@@ -16,7 +16,7 @@ Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Rating
 
 The app loads completed game data from remote sources, supports CSV import, and stores preferences and cached results in browser storage. Source details are available in the app.
 
-The matchup calculator includes weekly schedule predictions. It defaults to the first week with unplayed games (or the final scheduled week after the season), shows home/neutral venue and predicted margins, and lets you select a game to populate the calculator. Weekly predictions always use that season's results from Week 1 through the preceding week, excluding all selected-week results. The actual ratings cutoff is displayed. Selecting a game updates the calculator's rating range to match its prediction. Early weeks without enough history show predictions as unavailable; imported schedules may be incomplete.
+The matchup calculator includes weekly schedule predictions for unplayed games only. Completed games are omitted; fully played weeks show “No unplayed games remaining.” It defaults to the first week with unplayed games (or the final scheduled week after the season), shows home/neutral venue and predicted margins, and lets you select a game to populate the calculator. Weekly predictions always use that season's results from Week 1 through the preceding week, excluding all selected-week results. The actual ratings cutoff is displayed. Selecting a game updates the calculator's rating range to match its prediction. Early weeks without enough history show predictions as unavailable; imported schedules may be incomplete.
 
 ## Verification
 
