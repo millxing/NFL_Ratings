@@ -168,7 +168,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     await scrub.context.initializeV2();
     assert.equal(scrub.node('end-week-scrubber').value,'8');
     assert.equal(scrub.node('end-week-scrubber').max,'8');
-    assert.match(scrub.node('week-scrubber-label').textContent,/Through Week 9 — Partial/);
+    assert.equal(scrub.node('end-week-scrubber').getAttribute('aria-valuetext'),'Week 9 — Partial');
     assert.equal(scrub.node('next-week').disabled,true);
     await scrub.node('previous-week').dispatch('click');
     assert.equal(scrub.node('end-week-select').value,'8');
@@ -199,6 +199,24 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     await scrub.node('previous-week').dispatch('click');
     await pendingChange;
     assert.equal(scrub.context.renders.at(-1).end,'7','Scrubbing cancels an older delayed calculation');
+    assert.equal(scrub.node('start-week-scrubber').value,'2');
+    assert.equal(scrub.node('start-week-scrubber').max,'6','Start slider stops at End Week');
+    await scrub.node('previous-start-week').dispatch('click');
+    assert.equal(scrub.node('start-week-select').value,'2');
+    assert.equal(scrub.node('end-week-select').value,'7','Start scrubbing preserves End Week');
+    assert.equal(scrub.context.renders.at(-1).gamesCount,96);
+    scrub.node('start-week-scrubber').value = '0';
+    await scrub.node('start-week-scrubber').dispatch('input');
+    assert.equal(scrub.node('start-week-select').value,'1');
+    assert.equal(scrub.node('previous-start-week').disabled,true);
+    await scrub.node('next-start-week').dispatch('click');
+    assert.equal(scrub.node('start-week-select').value,'2');
+    assert.equal(scrub.run("readStored('preferences').start"),'2');
+    scrub.node('start-week-scrubber').value = '6';
+    await scrub.node('start-week-scrubber').dispatch('input');
+    assert.equal(scrub.node('start-week-select').value,'7');
+    assert.equal(scrub.node('next-start-week').disabled,true);
+    assert.equal(scrub.node('previous-week').disabled,true);
     const gaps = harness({csvText:currentCSV.split('\n').filter(line => !line.startsWith('2025_5_')).join('\n')});
     await gaps.context.initializeV2();
     await gaps.node('end-week-select').change('6');
@@ -206,7 +224,11 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(gaps.node('end-week-select').value,'4','Scrubbing skips weeks without results');
     await gaps.node('next-week').dispatch('click');
     assert.equal(gaps.node('end-week-select').value,'6');
+    await gaps.node('start-week-select').change('4');
+    await gaps.node('next-start-week').dispatch('click');
+    assert.equal(gaps.node('start-week-select').value,'6','Start scrubbing skips weeks without results');
     gaps.run('setDataLoading(true)');
+    assert.equal(gaps.node('start-week-scrubber').disabled,true);
     assert.equal(gaps.node('end-week-scrubber').disabled,true);
     assert.equal(gaps.node('previous-week').disabled,true);
     assert.equal(gaps.node('next-week').disabled,true);
@@ -214,7 +236,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(h.node('end-week-scrubber').disabled,true);
     assert.equal(h.node('previous-week').disabled,true);
     assert.equal(h.node('next-week').disabled,true);
-    assert.equal(h.node('week-scrubber-label').textContent,'Through week —');
+    assert.equal(h.node('start-week-scrubber').disabled,true);
 
     const weekly = harness({csvText:currentCSV});
     await weekly.context.initializeV2();

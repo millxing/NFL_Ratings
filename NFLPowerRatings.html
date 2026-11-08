@@ -85,14 +85,12 @@
         .status-message--error { border-color:var(--negative); color:var(--negative); }
         .status-message--success { border-color:var(--positive); }
         .week-availability { margin:0; color:var(--muted); font-size:14px; }
-        .week-scrubber { border-top:1px solid var(--line); padding-top:14px; min-width:0; }
-        .week-scrubber__label { display:block; margin-bottom:8px; font-size:14px; font-weight:600; }
-        .week-scrubber__controls { display:flex; align-items:center; gap:12px; }
-        .week-scrubber input { flex:1; min-width:0; height:44px; margin:0; accent-color:var(--accent); cursor:pointer; }
-        .week-step { flex:none; width:44px; height:44px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--text); font-size:20px; }
+        .week-scrubber__controls { display:flex; align-items:center; gap:8px; }
+        .week-scrubber__controls input { flex:1; min-width:0; height:32px; margin:0; accent-color:var(--accent); cursor:pointer; }
+        .week-step { flex:none; width:32px; height:32px; border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--text); font-size:18px; }
         .week-step:hover:enabled { background:var(--raised); }
-        .week-step:disabled,.week-scrubber input:disabled { cursor:default; }
-        .week-scrubber__bounds { display:flex; justify-content:space-between; gap:12px; margin:0 56px; color:var(--muted); font-size:12px; }
+        .week-step:disabled,.week-scrubber__controls input:disabled { cursor:default; }
+        .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
         .range-adjustment { margin:0; font-size:14px; color:var(--accent); }
         .range-adjustment:empty { display:none; }
         .empty-state { color:var(--muted); padding:24px 0; margin:0; }
@@ -251,6 +249,11 @@
                     <select id="start-week-select" class="form-field__select">
                         <!-- Options populated dynamically -->
                     </select>
+                    <div class="week-scrubber__controls">
+                        <button id="previous-start-week" class="week-step" type="button" aria-label="Previous start week" disabled>←</button>
+                        <input id="start-week-scrubber" type="range" min="0" max="0" value="0" step="1" aria-label="Scrub start week" aria-valuetext="No results available" disabled>
+                        <button id="next-start-week" class="week-step" type="button" aria-label="Next start week" disabled>→</button>
+                    </div>
                 </div>
 
                 <!-- End Week Selector -->
@@ -259,19 +262,15 @@
                     <select id="end-week-select" class="form-field__select">
                         <!-- Options populated dynamically -->
                     </select>
+                    <div class="week-scrubber__controls">
+                        <button id="previous-week" class="week-step" type="button" aria-label="Previous end week" disabled>←</button>
+                        <input id="end-week-scrubber" type="range" min="0" max="0" value="0" step="1" aria-label="Scrub end week" aria-valuetext="No results available" disabled>
+                        <button id="next-week" class="week-step" type="button" aria-label="Next end week" disabled>→</button>
+                    </div>
                 </div>
             </div>
-            <div class="week-scrubber">
-                <label for="end-week-scrubber" id="week-scrubber-label" class="week-scrubber__label">Through week —</label>
-                <div class="week-scrubber__controls">
-                    <button id="previous-week" class="week-step" type="button" aria-label="Previous end week" disabled>←</button>
-                    <input id="end-week-scrubber" type="range" min="0" max="0" value="0" step="1" aria-valuetext="No results available" disabled>
-                    <button id="next-week" class="week-step" type="button" aria-label="Next end week" disabled>→</button>
-                </div>
-                <div class="week-scrubber__bounds" aria-hidden="true"><span id="scrubber-first-week"></span><span id="scrubber-last-week"></span></div>
-            </div>
-            <p id="week-availability" class="week-availability" role="status" aria-live="polite">Loading game schedule…</p>
-            <p id="range-adjustment" class="range-adjustment" role="status" aria-live="polite"></p>
+            <p id="week-availability" class="visually-hidden" role="status" aria-live="polite">Loading game schedule…</p>
+            <p id="range-adjustment" class="visually-hidden" role="status" aria-live="polite"></p>
         </section>
 
         <!-- Status Message Display -->
@@ -321,16 +320,7 @@
 
             <section id="matchup-view" hidden class="v2-panel" aria-label="Matchup calculator">
               <h2>Matchup calculator</h2>
-              <section class="weekly-schedule" aria-labelledby="weekly-title">
-                <div class="weekly-schedule__header">
-                  <h2 id="weekly-title">Weekly predictions</h2>
-                  <div class="form-field"><label for="schedule-week" class="form-field__label">Schedule week</label><select id="schedule-week" class="form-field__select" disabled></select></div>
-                </div>
-                <p id="schedule-context" class="weekly-schedule__note" role="status"></p>
-                <div id="weekly-games" class="weekly-games"></div>
-              </section>
               <div id="custom-matchup">
-              <h2>Compare teams</h2>
               <p id="analysis-context"></p>
               <div class="controls-grid">
                 <div class="form-field"><label for="matchup-a" class="form-field__label">Team A</label><select id="matchup-a" class="form-field__select"></select></div>
@@ -341,6 +331,14 @@
               <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>Rating</th><th>W</th><th>L</th><th>T</th><th>Δ Rating</th><th>Δ Rank</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
               <div class="mobile-matchup" id="mobile-matchup"></div>
               </div>
+              <section class="weekly-schedule" aria-labelledby="weekly-title">
+                <div class="weekly-schedule__header">
+                  <h2 id="weekly-title">Weekly predictions</h2>
+                  <div class="form-field"><label for="schedule-week" class="form-field__label">Schedule week</label><select id="schedule-week" class="form-field__select" disabled></select></div>
+                </div>
+                <p id="schedule-context" class="weekly-schedule__note" role="status"></p>
+                <div id="weekly-games" class="weekly-games"></div>
+              </section>
             </section>
 
         <section class="data-status" aria-label="Data status">
@@ -1820,30 +1818,31 @@
             summary.textContent = `${season} latest results: ${describe(latest)}.${Number(end.value) !== latest ? ` Selected end: ${describe(Number(end.value))}.` : ''}`;
         }
         // Slider positions map to selectable weeks so gaps and future weeks are skipped.
-        function scrubberWeeks() {
-            return [...elements.endWeekSelect.options].filter(option => !option.disabled).map(option => option.value);
+        function scrubberWeeks(endpoint = 'end') {
+            const select = endpoint === 'start' ? elements.startWeekSelect : elements.endWeekSelect;
+            return [...select.options].filter(option => !option.disabled && (endpoint !== 'start' || Number(option.value) <= Number(elements.endWeekSelect.value))).map(option => option.value);
         }
         function syncWeekScrubber() {
-            const weeks = scrubberWeeks();
-            const index = weeks.indexOf(elements.endWeekSelect.value);
-            const disabled = appState.loadingData || !appState.dataLoaded || elements.endWeekSelect.disabled || index < 0;
-            const slider = document.getElementById('end-week-scrubber');
-            const selected = [...elements.endWeekSelect.options].find(option => option.value === elements.endWeekSelect.value);
-            const description = disabled ? 'No results available' : selected.textContent;
-            slider.max = String(Math.max(0, weeks.length - 1));
-            slider.value = String(Math.max(0, index));
-            slider.disabled = disabled || weeks.length < 2;
-            slider.setAttribute('aria-valuetext', description);
-            document.getElementById('week-scrubber-label').textContent = disabled ? 'Through week —' : `Through ${description}`;
-            document.getElementById('previous-week').disabled = disabled || index <= 0;
-            document.getElementById('next-week').disabled = disabled || index >= weeks.length - 1;
-            document.getElementById('scrubber-first-week').textContent = disabled ? '' : WEEK_LABELS[weeks[0]];
-            document.getElementById('scrubber-last-week').textContent = disabled ? '' : WEEK_LABELS[weeks.at(-1)];
+            for (const endpoint of ['start', 'end']) {
+                const select = endpoint === 'start' ? elements.startWeekSelect : elements.endWeekSelect;
+                const weeks = scrubberWeeks(endpoint);
+                const index = weeks.indexOf(select.value);
+                const disabled = appState.loadingData || !appState.dataLoaded || select.disabled || index < 0;
+                const slider = document.getElementById(`${endpoint}-week-scrubber`);
+                const selected = [...select.options].find(option => option.value === select.value);
+                slider.max = String(Math.max(0, weeks.length - 1));
+                slider.value = String(Math.max(0, index));
+                slider.disabled = disabled || weeks.length < 2;
+                slider.setAttribute('aria-valuetext', disabled ? 'No results available' : selected.textContent);
+                document.getElementById(endpoint === 'start' ? 'previous-start-week' : 'previous-week').disabled = disabled || index <= 0;
+                document.getElementById(endpoint === 'start' ? 'next-start-week' : 'next-week').disabled = disabled || index >= weeks.length - 1;
+            }
         }
-        function scrubToWeek(index) {
-            const weeks = scrubberWeeks();
-            if (appState.loadingData || !appState.dataLoaded || elements.endWeekSelect.disabled || !weeks[index] || weeks[index] === elements.endWeekSelect.value) return;
-            elements.endWeekSelect.value = weeks[index];
+        function scrubToWeek(index, endpoint = 'end') {
+            const weeks = scrubberWeeks(endpoint);
+            const select = endpoint === 'start' ? elements.startWeekSelect : elements.endWeekSelect;
+            if (appState.loadingData || !appState.dataLoaded || select.disabled || !weeks[index] || weeks[index] === select.value) return;
+            select.value = weeks[index];
             document.getElementById('range-adjustment').textContent = '';
             updateWeekAvailability();
             savePreferences();
@@ -2030,9 +2029,14 @@
             for (const select of [elements.seasonSelect,elements.startWeekSelect,elements.endWeekSelect]) {
                 select.addEventListener('change', handleFilterChange);
             }
-            document.getElementById('end-week-scrubber').addEventListener('input', event => scrubToWeek(Number(event.target.value)));
-            for (const [id, step] of [['previous-week', -1], ['next-week', 1]]) {
-                document.getElementById(id).addEventListener('click', () => scrubToWeek(scrubberWeeks().indexOf(elements.endWeekSelect.value) + step));
+            for (const endpoint of ['start', 'end']) {
+                const select = endpoint === 'start' ? elements.startWeekSelect : elements.endWeekSelect;
+                document.getElementById(`${endpoint}-week-scrubber`).addEventListener('input', event => scrubToWeek(Number(event.target.value), endpoint));
+                const previous = endpoint === 'start' ? 'previous-start-week' : 'previous-week';
+                const next = endpoint === 'start' ? 'next-start-week' : 'next-week';
+                for (const [id, step] of [[previous, -1], [next, 1]]) {
+                    document.getElementById(id).addEventListener('click', () => scrubToWeek(scrubberWeeks(endpoint).indexOf(select.value) + step, endpoint));
+                }
             }
             document.getElementById('schedule-week').addEventListener('change', renderWeeklySchedule);
             const prefs = readStored('preferences');
