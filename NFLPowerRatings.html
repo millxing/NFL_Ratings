@@ -122,7 +122,6 @@
         .form-field__select { scroll-margin-top:60px; }
         .sort-button { border:0; background:transparent; padding:0; color:inherit; font-weight:600; min-height:24px; }
         .sort-button:hover,.sort-active { color:var(--accent)!important; }
-        .sort-indicator { font-size:10px; display:inline-block; width:10px; margin-left:3px; }
         .rank-cell,.team-cell__abbr { color:var(--muted); }
         .team-cell { font-weight:600; }
         .team-cell__nickname { display:none; }
@@ -188,11 +187,8 @@
             .team-cell__full { display:none; }
             .team-cell__nickname { display:inline; }
             .results-table .sort-button { display:inline-flex; flex-direction:column; align-items:center; justify-content:center; min-height:32px; }
-            .results-table .sort-indicator { margin-left:0; line-height:1; }
             .results-table th:first-child,.results-table td:first-child { min-width:32px; width:32px; padding-left:4px; padding-right:4px; text-align:center; }
-            .results-table th:first-child .sort-label { display:none; }
-            .results-table th:first-child .sort-button { width:24px; }
-            .results-table th:first-child .sort-indicator { margin-left:0; }
+            .results-table th:first-child .sort-button { font-size:10px; }
             .results-table th:nth-child(2),.results-table td:nth-child(2) { left:32px; }
             #matchup-view .table-container { display:none; }
             .mobile-matchup { display:block; }
@@ -288,17 +284,17 @@
                 <table class="results-table">
                     <thead>
                         <tr>
-                            <th data-sort="rank" scope="col" aria-sort="none"><button class="sort-button" type="button" aria-label="Sort by rank"><span class="sort-label">Rank </span><span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="team" scope="col" aria-sort="none"><button class="sort-button" type="button">Team <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="rating" scope="col" aria-sort="none"><button class="sort-button" type="button">Rating <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="wins" scope="col" aria-sort="none"><button class="sort-button" type="button">Wins <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="losses" scope="col" aria-sort="none"><button class="sort-button" type="button">Losses <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="ties" scope="col" aria-sort="none"><button class="sort-button" type="button">Ties <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="rank" scope="col" aria-sort="none" title="Rank by power rating, with the highest-rated team first"><button class="sort-button" type="button" aria-label="Sort by rank" title="Rank by power rating, with the highest-rated team first. Click to sort; click again to reverse."><span class="sort-label">Rank </span></button></th>
+                            <th data-sort="team" scope="col" aria-sort="none" title="NFL team name"><button class="sort-button" type="button" title="NFL team name. Click to sort; click again to reverse.">Team</button></th>
+                            <th data-sort="rating" scope="col" aria-sort="none" title="Estimated points above or below an average team on a neutral field"><button class="sort-button" type="button" title="Estimated points above or below an average team on a neutral field. Click to sort; click again to reverse.">Rating</button></th>
+                            <th data-sort="wins" scope="col" aria-sort="none" title="Wins in completed games over the selected week range"><button class="sort-button" type="button" title="Wins in completed games over the selected week range. Click to sort; click again to reverse.">Wins</button></th>
+                            <th data-sort="losses" scope="col" aria-sort="none" title="Losses in completed games over the selected week range"><button class="sort-button" type="button" title="Losses in completed games over the selected week range. Click to sort; click again to reverse.">Losses</button></th>
+                            <th data-sort="ties" scope="col" aria-sort="none" title="Ties in completed games over the selected week range"><button class="sort-button" type="button" title="Ties in completed games over the selected week range. Click to sort; click again to reverse.">Ties</button></th>
                             
-                            <th data-sort="pointsScored" scope="col" aria-sort="none" title="Total points scored over the selected week range"><button class="sort-button" type="button">Pts Scored <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="pointsAllowed" scope="col" aria-sort="none" title="Total points allowed over the selected week range"><button class="sort-button" type="button">Pts Allowed <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="pointdiff" scope="col" aria-sort="none"><button class="sort-button" type="button">Pt Diff <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
-                            <th data-sort="sos" scope="col" aria-sort="none"><button class="sort-button" type="button">SOS <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="pointsScored" scope="col" aria-sort="none" title="Points for: total points scored in completed games over the selected week range"><button class="sort-button" type="button" title="Points for: total points scored in completed games over the selected week range" aria-label="Sort by points for: total points scored in completed games over the selected week range">PF</button></th>
+                            <th data-sort="pointsAllowed" scope="col" aria-sort="none" title="Points against: total points allowed in completed games over the selected week range"><button class="sort-button" type="button" title="Points against: total points allowed in completed games over the selected week range" aria-label="Sort by points against: total points allowed in completed games over the selected week range">PA</button></th>
+                            <th data-sort="pointdiff" scope="col" aria-sort="none" title="Average point differential per game (points scored minus points allowed) over the selected week range"><button class="sort-button" type="button" title="Average point differential per game (points scored minus points allowed) over the selected week range" aria-label="Sort by average point differential per game (points scored minus points allowed) over the selected week range">DIFF</button></th>
+                            <th data-sort="sos" scope="col" aria-sort="none" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range"><button class="sort-button" type="button" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range. Click to sort; click again to reverse.">SOS</button></th>
                         </tr>
                     </thead>
                     <tbody id="results-body">
@@ -307,7 +303,7 @@
                 </table>
             </div>
 
-            <div class="table-help"><details><summary>How to read the ratings</summary><p>Rating estimates points above or below an average team on a neutral field. Pt Diff is average scoring margin; SOS is strength of schedule. Pts Scored and Pts Allowed are totals from completed games over the selected week range.</p></details></div>
+            <div class="table-help"><details><summary>How to read the ratings</summary><p>Rating estimates points above or below an average team on a neutral field. PF (points for) and PA (points against) are totals from completed games over the selected week range. DIFF is average scoring margin per game over that range; SOS is strength of schedule.</p></details></div>
             <!-- Home Field Advantage Display -->
             <div class="hfa-display" title="Estimated using non-neutral games only, adjusting for team strength. Ratings then use all games with this estimate fixed; neutral sites receive zero home advantage.">
                 <span class="hfa-display__label">Home Field Advantage:</span>
@@ -326,7 +322,7 @@
                 <div class="form-field"><label for="matchup-venue" class="form-field__label">Venue</label><select id="matchup-venue" class="form-field__select"><option value="neutral">Neutral field</option><option value="a">Team A home</option><option value="b">Team B home</option></select></div>
               </div>
               <p id="matchup-result" aria-live="polite"></p>
-              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>Rating</th><th>W</th><th>L</th><th>T</th><th title="Total points scored over the selected week range">Pts Scored</th><th title="Total points allowed over the selected week range">Pts Allowed</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
+              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th title="Rank by power rating, with the highest-rated team first">Rank</th><th title="NFL team name">Team</th><th title="Estimated points above or below an average team on a neutral field">Rating</th><th title="Wins in completed games over the selected week range">W</th><th title="Losses in completed games over the selected week range">L</th><th title="Ties in completed games over the selected week range">T</th><th title="Points for: total points scored in completed games over the selected week range">PF</th><th title="Points against: total points allowed in completed games over the selected week range">PA</th><th title="Average point differential per game (points scored minus points allowed) over the selected week range">DIFF</th><th title="Strength of schedule adjustment: Rating minus average point differential over the selected week range">SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
               <div class="mobile-matchup" id="mobile-matchup"></div>
               </div>
               <section class="weekly-schedule" aria-labelledby="weekly-title">
@@ -532,9 +528,9 @@
             /** @type {number} Current home field advantage value */
             currentHFA: 0,
             /** @type {string} Current sort column ('rank', 'team', 'rating') */
-            sortColumn: 'rank',
+            sortColumn: 'rating',
             /** @type {string} Current sort direction ('asc' or 'desc') */
-            sortDirection: 'asc',
+            sortDirection: 'desc',
         };
 
         // =========================================================================
@@ -1434,23 +1430,20 @@
         }
 
         /**
-         * Updates the sort indicator icons in the table header.
+         * Updates the active column and accessible sort direction in the table header.
          */
-        function updateSortIndicators() {
+        function updateSortHeaders() {
             const headers = document.querySelectorAll('.results-table th[data-sort]');
 
             headers.forEach((header) => {
                 const column = header.getAttribute('data-sort');
-                const indicator = header.querySelector('.sort-indicator');
 
                 if (column === appState.sortColumn) {
                     header.classList.add('sort-active');
                     header.setAttribute('aria-sort', appState.sortDirection === 'asc' ? 'ascending' : 'descending');
-                    indicator.textContent = appState.sortDirection === 'asc' ? '▲' : '▼';
                 } else {
                     header.classList.remove('sort-active');
                     header.setAttribute('aria-sort', 'none');
-                    indicator.textContent = '↕';
                 }
             });
         }
@@ -1474,9 +1467,8 @@
                 appState.sortDirection = ['rank', 'team'].includes(column) ? 'asc' : 'desc';
             }
 
-            savePreferences();
             // Re-render with new sort
-            updateSortIndicators();
+            updateSortHeaders();
             renderTableBody();
         }
 
@@ -1579,8 +1571,8 @@
             const tableHead = document.querySelector('.results-table thead');
             tableHead.onclick = handleSortClick;
 
-            // Update sort indicators
-            updateSortIndicators();
+            // Update sort header state
+            updateSortHeaders();
 
             // Render table body
             renderTableBody();
@@ -1850,7 +1842,7 @@
             return calculateRatings({ immediate: true });
         }
         function savePreferences() {
-            writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, sortColumn: appState.sortColumn, sortDirection: appState.sortDirection, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
+            writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
         }
         function invalidateResults() {
             appState.currentRatings = [];
@@ -1975,6 +1967,9 @@
             document.getElementById('import-data').onclick = () => { elements.fileUpload.click(); };
             const refresh = document.getElementById('refresh-data');
             refresh.onclick = async () => {
+                appState.sortColumn = 'rating';
+                appState.sortDirection = 'desc';
+                updateSortHeaders();
                 refresh.disabled = true;
                 ++calculationVersion;
                 setDataLoading(true);
@@ -2019,8 +2014,6 @@
                 for (const [select, value] of [[elements.seasonSelect,prefs.season],[elements.startWeekSelect,prefs.start],[elements.endWeekSelect,prefs.end]]) {
                     if ([...select.options].some(o => o.value === value)) select.value = value;
                 }
-                if (['rank','team','rating','wins','losses','ties','pointdiff','sos','pointsScored','pointsAllowed'].includes(prefs.sortColumn)) appState.sortColumn = prefs.sortColumn;
-                if (['asc','desc'].includes(prefs.sortDirection)) appState.sortDirection = prefs.sortDirection;
                 if (appState.dataLoaded) updateWeekAvailability();
             }
             if (appState.dataLoaded) {
@@ -2125,14 +2118,28 @@
                 ['Rank', t => appState.currentRatings.filter(other => other.rating > t.rating).length + 1],
                 ['Rating', t => signedValue(t.rating)],
                 ['Record (W–L–T)', t => `${t.wins}–${t.losses}–${t.ties}`],
-                ['Pts Scored', t => t.pointsScored],
-                ['Pts Allowed', t => t.pointsAllowed],
-                ['Pt Diff', t => signedValue(t.avgPointDiff)],
+                ['PF', t => t.pointsScored],
+                ['PA', t => t.pointsAllowed],
+                ['DIFF', t => signedValue(t.avgPointDiff)],
                 ['SOS', t => signedValue(t.sos)]
             ];
+            const metricDescriptions = {
+                Rank: 'Rank by power rating, with the highest-rated team first',
+                Rating: 'Estimated points above or below an average team on a neutral field',
+                'Record (W–L–T)': 'Wins, losses, and ties over the selected week range',
+                SOS: 'Strength of schedule adjustment: Rating minus average point differential over the selected week range',
+                PF: 'Points for: total points scored in completed games over the selected week range',
+                PA: 'Points against: total points allowed in completed games over the selected week range',
+                DIFF: 'Average point differential per game (points scored minus points allowed) over the selected week range'
+            };
             for (const [label, value] of metrics) {
                 const row = body.insertRow();
-                const th = document.createElement('th'); th.scope = 'row'; th.textContent = label; row.append(th);
+                const th = document.createElement('th'); th.scope = 'row'; th.textContent = label;
+                if (metricDescriptions[label]) {
+                    th.title = metricDescriptions[label];
+                    th.setAttribute('aria-label', `${label}: ${metricDescriptions[label]}`);
+                }
+                row.append(th);
                 data.forEach(team => { row.insertCell().textContent = value(team); });
             }
             container.append(table);

@@ -45,7 +45,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     const options = ['neutral','a','b'];
     options.forEach(value => { const option = new Node(); option.value = value; node('matchup-venue').add(option); });
     const context = vm.createContext({
-        document: { getElementById: node, addEventListener() {}, createElement: tag => new Node(tag), querySelector: node },
+        document: { getElementById: node, addEventListener() {}, createElement: tag => new Node(tag), querySelector: node, querySelectorAll: () => [] },
         window: {addEventListener() {}}, location: {hash:''},
         Option: function(text,value) { this.textContent = text; this.value = String(value); },
         localStorage: {getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
@@ -76,6 +76,8 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     const currentCSV = lines.filter(line => !line.startsWith('2026_')).join('\n');
     const firstVisit = harness({csvText:currentCSV});
     await firstVisit.context.initializeV2();
+    assert.equal(firstVisit.run('appState.sortColumn'),'rating');
+    assert.equal(firstVisit.run('appState.sortDirection'),'desc');
     assert.equal(firstVisit.context.renders.length,1,'Fresh visit calculates automatically');
     assert.equal(firstVisit.context.renders[0].gamesCount,129);
     assert.equal(firstVisit.node('end-week-select').value,'9');
@@ -138,8 +140,14 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(h.node('status-message').textContent,'');
     assert.equal(h.context.renders.at(-1).gamesCount,129);
 
+    // Sorting saved by earlier versions must not override the default on reload.
+    h.run("const priorPrefs = readStored('preferences'); priorPrefs.sortColumn = 'team'; priorPrefs.sortDirection = 'asc'; writeStored('preferences', priorPrefs)");
     const restored = harness({storage:h.storage});
     await restored.context.initializeV2();
+    assert.equal(restored.run('appState.sortColumn'),'rating','Reload ignores previously saved sorting');
+    assert.equal(restored.run('appState.sortDirection'),'desc');
+    const sortedOnReload = restored.run('sortRatings(appState.currentRatings)');
+    assert.ok(sortedOnReload.every((team, index) => index === 0 || sortedOnReload[index-1].rating >= team.rating));
     assert.equal(restored.context.renders.length,1);
     assert.equal(restored.context.solverCalls,0,'Valid saved ratings skip recomputation');
     assert.equal(restored.context.renders[0].gamesCount,129);
@@ -160,7 +168,10 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(changed.context.renders[0].gamesCount,130,'Changed source invalidates saved ratings');
     assert.ok(changed.context.solverCalls > 0);
     firstVisit.network.csvText = newerCSV;
+    firstVisit.run("appState.sortColumn = 'team'; appState.sortDirection = 'asc'");
     await firstVisit.node('refresh-data').onclick();
+    assert.equal(firstVisit.run('appState.sortColumn'),'rating','Refresh data restores Rating sorting');
+    assert.equal(firstVisit.run('appState.sortDirection'),'desc');
     assert.equal(firstVisit.context.renders.at(-1).gamesCount,130,'Refresh recalculates automatically');
     assert.match(firstVisit.node('week-availability').textContent,/2 of 16 games recorded/);
 
