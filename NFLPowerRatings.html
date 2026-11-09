@@ -131,11 +131,8 @@
         .rating-cell--positive { color:var(--positive); }
         .rating-cell--negative { color:var(--negative); }
         .rating-cell--neutral { color:var(--text); }
-        .movement { color:var(--muted); }
         .hfa-display { display:flex; gap:8px; align-items:baseline; margin-top:16px; color:var(--muted); font-size:14px; }
         .hfa-display__value { color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; }
-        #comparison-note { font-size:14px; color:var(--muted); }
-        #comparison-note:empty { display:none; }
         .table-help { display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:13px; margin:10px 0 0; }
         .table-help summary { cursor:pointer; }
         .table-help p { max-width:680px; }
@@ -298,7 +295,9 @@
                             <th data-sort="losses" scope="col" aria-sort="none"><button class="sort-button" type="button">Losses <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
                             <th data-sort="ties" scope="col" aria-sort="none"><button class="sort-button" type="button">Ties <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
                             
-                            <th data-sort="movementPoints" aria-sort="none" title="Rating points gained or lost since the preceding end week"><button class="sort-button" type="button">Δ Rating <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th data-sort="movementRanks" aria-sort="none" title="Ranks gained or lost since the preceding end week"><button class="sort-button" type="button">Δ Rank <span class="sort-indicator" aria-hidden="true">↕</span></button></th><th data-sort="pointdiff" scope="col" aria-sort="none"><button class="sort-button" type="button">Pt Diff <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="pointsScored" scope="col" aria-sort="none" title="Total points scored over the selected week range"><button class="sort-button" type="button">Pts Scored <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="pointsAllowed" scope="col" aria-sort="none" title="Total points allowed over the selected week range"><button class="sort-button" type="button">Pts Allowed <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
+                            <th data-sort="pointdiff" scope="col" aria-sort="none"><button class="sort-button" type="button">Pt Diff <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
                             <th data-sort="sos" scope="col" aria-sort="none"><button class="sort-button" type="button">SOS <span class="sort-indicator" aria-hidden="true">↕</span></button></th>
                         </tr>
                     </thead>
@@ -308,8 +307,7 @@
                 </table>
             </div>
 
-            <div class="table-help"><details><summary>How to read the ratings</summary><p>Rating estimates points above or below an average team on a neutral field. Pt Diff is average scoring margin; SOS is strength of schedule. Δ Rating and Δ Rank compare with the preceding end week. Positive rank movement means a climb.</p></details></div>
-            <p id="comparison-note"></p>
+            <div class="table-help"><details><summary>How to read the ratings</summary><p>Rating estimates points above or below an average team on a neutral field. Pt Diff is average scoring margin; SOS is strength of schedule. Pts Scored and Pts Allowed are totals from completed games over the selected week range.</p></details></div>
             <!-- Home Field Advantage Display -->
             <div class="hfa-display" title="Estimated using non-neutral games only, adjusting for team strength. Ratings then use all games with this estimate fixed; neutral sites receive zero home advantage.">
                 <span class="hfa-display__label">Home Field Advantage:</span>
@@ -328,7 +326,7 @@
                 <div class="form-field"><label for="matchup-venue" class="form-field__label">Venue</label><select id="matchup-venue" class="form-field__select"><option value="neutral">Neutral field</option><option value="a">Team A home</option><option value="b">Team B home</option></select></div>
               </div>
               <p id="matchup-result" aria-live="polite"></p>
-              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>Rating</th><th>W</th><th>L</th><th>T</th><th>Δ Rating</th><th>Δ Rank</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
+              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th>Rank</th><th>Team</th><th>Rating</th><th>W</th><th>L</th><th>T</th><th title="Total points scored over the selected week range">Pts Scored</th><th title="Total points allowed over the selected week range">Pts Allowed</th><th>Pt Diff</th><th>SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
               <div class="mobile-matchup" id="mobile-matchup"></div>
               </div>
               <section class="weekly-schedule" aria-labelledby="weekly-title">
@@ -950,7 +948,7 @@
          * Calculates the decomposition of power ratings into point differential and SOS.
          *
          * @param {Array<Object>} games - Array of game objects
-         * @returns {Object.<string, {avgPointDiff: number, sos: number, gameCount: number}>}
+         * @returns {Object.<string, {avgPointDiff: number, sos: number, gameCount: number, pointsScored: number, pointsAllowed: number}>}
          */
         function calculateRatingDecomposition(games) {
             const teamStats = {};
@@ -959,6 +957,8 @@
             Object.keys(TEAM_INDEX_MAP).forEach((team) => {
                 teamStats[team] = {
                     totalPointDiff: 0,
+                    pointsScored: 0,
+                    pointsAllowed: 0,
                     gameCount: 0,
                     opponentPointDiffs: [],
                 };
@@ -973,6 +973,10 @@
 
                 const pointDiff = game.home_score - game.away_score;
 
+                teamStats[homeTeam].pointsScored += game.home_score;
+                teamStats[homeTeam].pointsAllowed += game.away_score;
+                teamStats[awayTeam].pointsScored += game.away_score;
+                teamStats[awayTeam].pointsAllowed += game.home_score;
                 teamStats[homeTeam].totalPointDiff += pointDiff;
                 teamStats[homeTeam].gameCount += 1;
 
@@ -1018,6 +1022,8 @@
                     avgPointDiff,
                     sos,
                     gameCount: teamStats[team].gameCount,
+                    pointsScored: teamStats[team].pointsScored,
+                    pointsAllowed: teamStats[team].pointsAllowed,
                 };
             });
 
@@ -1039,7 +1045,7 @@
          *
          * @param {Array<number>} beta - OLS coefficient vector
          * @param {Array<Object>} games - Array of game objects for record calculation
-         * @returns {{homeFieldAdvantage: number, ratings: Array<{team: string, rating: number, wins: number, losses: number, ties: number, avgPointDiff: number, sos: number}>}}
+         * @returns {{homeFieldAdvantage: number, ratings: Array<{team: string, rating: number, wins: number, losses: number, ties: number, pointsScored: number, pointsAllowed: number, avgPointDiff: number, sos: number}>}}
          */
         function calculatePowerRatings(beta, games) {
             // Extract home-field advantage (first coefficient)
@@ -1076,6 +1082,8 @@
                     losses: record.losses,
                     ties: record.ties,
                     avgPointDiff: decompStats.avgPointDiff,
+                    pointsScored: decompStats.pointsScored,
+                    pointsAllowed: decompStats.pointsAllowed,
                     sos: sos,
                 };
             });
@@ -1407,15 +1415,10 @@
                         // Sort by strength of schedule
                         comparison = a.sos - b.sos;
                         break;
-                    case 'movementPoints':
-                    case 'movementRanks': {
-                        const field = sortColumn === 'movementPoints' ? 'points' : 'ranks';
-                        const left = movement.get(a.team)?.[field];
-                        const right = movement.get(b.team)?.[field];
-                        if (left == null || right == null) return left == null ? (right == null ? 0 : 1) : -1;
-                        comparison = left - right;
+                    case 'pointsScored':
+                    case 'pointsAllowed':
+                        comparison = a[sortColumn] - b[sortColumn];
                         break;
-                    }
                     case 'rank':
                     default:
                         // Sort by original rank (rating descending)
@@ -1493,7 +1496,7 @@
                 const originalRank = appState.currentRatings
                     .filter((t) => t.rating > teamData.rating).length + 1;
 
-                const { team, teamName, rating, wins, losses, ties, avgPointDiff, sos } = teamData;
+                const { team, teamName, rating, wins, losses, ties, pointsScored, pointsAllowed, avgPointDiff, sos } = teamData;
 
                 // Create table row
                 const row = document.createElement('tr');
@@ -1536,7 +1539,7 @@
           <td class="record-cell">${losses}</td>
           <td class="record-cell">${ties}</td>
           
-          <td class="movement">${movementText(team, false)}</td><td class="movement">${movementText(team, true)}</td>
+          <td class="numeric-cell">${pointsScored}</td><td class="numeric-cell">${pointsAllowed}</td>
           <td class="rating-cell numeric-cell ${pointDiffClass}">
             ${signedValue(avgPointDiff)}
           </td>
@@ -1585,7 +1588,7 @@
             // Show results section with animation
             resultsSection.classList.add('results-section--visible');
             document.getElementById('analysis-context').textContent = `Season ${elements.seasonSelect.value}, weeks ${elements.startWeekSelect.value}–${elements.endWeekSelect.value}. Calculated power ratings.`;
-            writeStored('ratings', {version:1, dataKey:ratingsDataKey(), season:elements.seasonSelect.value, start:elements.startWeekSelect.value, end:elements.endWeekSelect.value, gamesCount, results, movement:[...movement], note:document.getElementById('comparison-note').textContent});
+            writeStored('ratings', {version:2, dataKey:ratingsDataKey(), season:elements.seasonSelect.value, start:elements.startWeekSelect.value, end:elements.endWeekSelect.value, gamesCount, results});
             updateMatchup();
             showView();
             syncFloatingHeader();
@@ -1625,7 +1628,6 @@
                     return;
                 }
                 const results = calculatePowerRatings(performOLSRegression(X, y), filteredGames);
-                calculateMovement(season, startWeek, endWeek, results);
                 savePreferences();
                 renderResultsTable(results, validGames);
                 hideStatus();
@@ -1729,7 +1731,6 @@
         document.addEventListener('DOMContentLoaded', initializeV2);
 
         const STORAGE_PREFIX = 'nfl-ratings-v3-';
-        let movement = new Map();
         function readStored(key) {
             try { return JSON.parse(localStorage.getItem(STORAGE_PREFIX + key)); }
             catch { return null; }
@@ -1857,40 +1858,9 @@
             writeStored('ratings', null);
             showView();
         }
-        function calculateMovement(season, start, end, results) {
-            movement = new Map();
-            // Future selected weeks contain no results. Reconstruct last week's
-            // ratings from completed games, using the same starting week.
-            const current = filterGames(appState.gamesData, season, start, end);
-            const latestWeek = current.reduce((latest, game) => Math.max(latest, game.week), 0);
-            const previous = filterGames(appState.gamesData, season, start, latestWeek - 1);
-            const note = document.getElementById('comparison-note');
-            try {
-                if (latestWeek <= start || previous.length < NUM_TEAMS) throw new Error('Insufficient history');
-                const {X, y, validGames} = buildDesignMatrix(previous);
-                if (validGames < NUM_TEAMS) throw new Error('Insufficient history');
-                const prior = calculatePowerRatings(performOLSRegression(X, y), previous).ratings;
-                results.ratings.forEach(team => {
-                    const old = prior.find(t => t.team === team.team);
-                    if (!old || !Number.isFinite(old.rating)) throw new Error('Invalid comparison');
-                    movement.set(team.team, {points: team.rating - old.rating, ranks: prior.filter(t => t.rating > old.rating).length - results.ratings.filter(t => t.rating > team.rating).length});
-                });
-                note.textContent = '';
-            } catch {
-                movement.clear();
-                note.textContent = 'Weekly movement unavailable: the preceding range does not contain enough usable history.';
-            }
-        }
         function signedValue(value) {
             const rounded = Number(value.toFixed(1));
             return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}`;
-        }
-        function movementText(team, ranks) {
-            const item = movement.get(team);
-            if (!item) return '—';
-            const value = ranks ? item.ranks : item.points;
-            const formatted = ranks ? String(value) : Number(value.toFixed(1)).toFixed(1);
-            return (Number(formatted) > 0 ? '+' : '') + formatted;
         }
         let scheduleSeason = null;
         let forecastCache = null;
@@ -2049,7 +2019,7 @@
                 for (const [select, value] of [[elements.seasonSelect,prefs.season],[elements.startWeekSelect,prefs.start],[elements.endWeekSelect,prefs.end]]) {
                     if ([...select.options].some(o => o.value === value)) select.value = value;
                 }
-                if (['rank','team','rating','wins','losses','ties','pointdiff','sos','movementPoints','movementRanks'].includes(prefs.sortColumn)) appState.sortColumn = prefs.sortColumn;
+                if (['rank','team','rating','wins','losses','ties','pointdiff','sos','pointsScored','pointsAllowed'].includes(prefs.sortColumn)) appState.sortColumn = prefs.sortColumn;
                 if (['asc','desc'].includes(prefs.sortDirection)) appState.sortDirection = prefs.sortDirection;
                 if (appState.dataLoaded) updateWeekAvailability();
             }
@@ -2058,9 +2028,7 @@
                 else updateWeekAvailability();
             }
             const saved = readStored('ratings');
-            if (appState.dataLoaded && saved && saved.version === 1 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === NUM_TEAMS && saved.results.ratings.every(t => TEAM_NAMES[t.team] && Number.isFinite(t.rating)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
-                movement = new Map(saved.movement || []);
-                document.getElementById('comparison-note').textContent = saved.note || '';
+            if (appState.dataLoaded && saved && saved.version === 2 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === NUM_TEAMS && saved.results.ratings.every(t => TEAM_NAMES[t.team] && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
                 renderResultsTable(saved.results, saved.gamesCount);
                 hideStatus();
             } else if (appState.dataLoaded) {
@@ -2157,8 +2125,8 @@
                 ['Rank', t => appState.currentRatings.filter(other => other.rating > t.rating).length + 1],
                 ['Rating', t => signedValue(t.rating)],
                 ['Record (W–L–T)', t => `${t.wins}–${t.losses}–${t.ties}`],
-                ['Δ Rating', t => movementText(t.team,false)],
-                ['Δ Rank', t => movementText(t.team,true)],
+                ['Pts Scored', t => t.pointsScored],
+                ['Pts Allowed', t => t.pointsAllowed],
                 ['Pt Diff', t => signedValue(t.avgPointDiff)],
                 ['SOS', t => signedValue(t.sos)]
             ];
@@ -2180,7 +2148,7 @@
                 const row = document.createElement('tr');
                 const rank = appState.currentRatings.filter(t => t.rating > team.rating).length + 1;
                 const signed = signedValue;
-                for (const value of [rank, team.teamName, signed(team.rating), team.wins, team.losses, team.ties, movementText(abbr,false), movementText(abbr,true), signed(team.avgPointDiff), signed(team.sos)]) {
+                for (const value of [rank, team.teamName, signed(team.rating), team.wins, team.losses, team.ties, team.pointsScored, team.pointsAllowed, signed(team.avgPointDiff), signed(team.sos)]) {
                     const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
                 }
                 body.appendChild(row);

@@ -66,7 +66,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
             appState.currentHFA = results.homeFieldAdvantage;
             renders.push({season:elements.seasonSelect.value,start:elements.startWeekSelect.value,end:elements.endWeekSelect.value,gamesCount,results});
             elements.resultsSection.classList.add('results-section--visible');
-            writeStored('ratings', {version:1,dataKey:ratingsDataKey(),season:elements.seasonSelect.value,start:elements.startWeekSelect.value,end:elements.endWeekSelect.value,results,gamesCount,movement:[...movement]});
+            writeStored('ratings', {version:2,dataKey:ratingsDataKey(),season:elements.seasonSelect.value,start:elements.startWeekSelect.value,end:elements.endWeekSelect.value,results,gamesCount});
         };
     `,context);
     return {context,node,storage,network,run:code=>vm.runInContext(code,context)};
@@ -105,6 +105,23 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.match(h.node('week-availability').textContent,/Selected end: Week 8 · 16 of 16 games recorded/);
     await h.node('start-week-select').change('2');
     assert.equal(h.context.renders.at(-1).gamesCount,112);
+    const selectedGames = h.run('filterGames(appState.gamesData, 2025, 2, 8)');
+    for (const team of h.context.renders.at(-1).results.ratings) {
+        const totals = selectedGames.reduce((sum, game) => {
+            if (game.home_team === team.team) { sum.scored += game.home_score; sum.allowed += game.away_score; }
+            if (game.away_team === team.team) { sum.scored += game.away_score; sum.allowed += game.home_score; }
+            return sum;
+        }, {scored:0,allowed:0});
+        assert.equal(team.pointsScored,totals.scored,`${team.team} points scored use only selected weeks`);
+        assert.equal(team.pointsAllowed,totals.allowed,`${team.team} points allowed use only selected weeks`);
+    }
+    for (const field of ['pointsScored','pointsAllowed']) {
+        for (const direction of ['asc','desc']) {
+            const sorted = h.run(`appState.sortColumn = '${field}'; appState.sortDirection = '${direction}'; sortRatings(appState.currentRatings)`);
+            assert.ok(sorted.every((team,index) => index === 0 || (direction === 'asc' ? sorted[index-1][field] <= team[field] : sorted[index-1][field] >= team[field])));
+        }
+    }
+
     const before = h.context.renders.length;
     const slow = h.node('end-week-select').change('7');
     const latest = h.node('end-week-select').change('6');
@@ -127,6 +144,12 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(restored.context.solverCalls,0,'Valid saved ratings skip recomputation');
     assert.equal(restored.context.renders[0].gamesCount,129);
     assert.match(restored.node('week-availability').textContent,/Partial/);
+    const legacy = harness({storage:new Map(h.storage)});
+    legacy.run("const old = readStored('ratings'); old.version = 1; old.results.ratings.forEach(team => { delete team.pointsScored; delete team.pointsAllowed; }); writeStored('ratings', old)");
+    await legacy.context.initializeV2();
+    assert.ok(legacy.context.solverCalls > 0,'Old saved ratings are recalculated to populate points totals');
+    assert.ok(legacy.context.renders[0].results.ratings.every(team => Number.isFinite(team.pointsScored) && Number.isFinite(team.pointsAllowed)));
+
 
     const newerCSV = csv.split('\n').map(line => {
         if (!line.startsWith('2025_9_1,')) return line;
