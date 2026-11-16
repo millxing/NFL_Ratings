@@ -14,7 +14,7 @@ python3 -m http.server 8765
 
 Visit http://localhost:8765/. The root page opens `NFLPowerRatings.html`. Ratings calculate automatically after game data loads and whenever Season, Start Week, or End Week changes; valid saved results are restored on later visits. Week labels omit Complete; Partial appears only for the current season, and weeks with No results remain labelled and disabled. Compact scrubbers beneath Start Week and End Week let you drag either endpoint or use previous/next arrows. Keyboard arrows step the focused slider; weeks without results are skipped, and the endpoints cannot cross. Each scrubber stays in sync with its dropdown, where partial weeks remain labelled. Imported files without a verified full schedule show Completeness unknown. Data checked reports retrieval time, not when game results were published. Earlier versions remain in git history.
 
-The ratings table and matchup comparisons show PF (points for) and PA (points against) as totals from completed games over the selected week range. DIFF is the average scoring margin per game over that range. Column tooltips explain each metric. Sorting defaults to Rating, highest first, whenever the app opens, reloads, or Refresh data is used; column headers still support sorting without arrow symbols.
+The ratings table and matchup comparisons show PF (points for) and PA (points against) as totals from completed games over the selected week range. DIFF is the average scoring margin per game over that range. Column tooltips explain each metric on hover or keyboard focus, including in the floating header. Press Escape to close a tooltip. Sorting defaults to Rating, highest first, whenever the app opens, reloads, or Refresh data is used; column headers still support sorting without arrow symbols.
 
 The app loads completed game data from remote sources, supports CSV import, and stores preferences and cached results in browser storage. Source details are available in the app.
 
@@ -25,6 +25,7 @@ Below the matchup calculator, weekly schedule predictions show unplayed games on
 ```sh
 node tests/ratings-model.cjs
 node tests/startup.cjs
+node tests/column-tooltips.cjs
 ```
 
 Design assessments and the remaining issue register are in [docs/design-review/SUMMARY.md](docs/design-review/SUMMARY.md).

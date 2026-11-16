@@ -122,6 +122,8 @@
         .mobile-matchup caption { text-align:left; font-weight:600; margin-bottom:10px; }
         .form-field__select { scroll-margin-top:60px; }
         .sort-button { border:0; background:transparent; padding:0; color:inherit; font-weight:600; min-height:24px; }
+        .column-tooltip { position:fixed; z-index:10; width:max-content; max-width:min(300px,calc(100vw - 24px)); padding:9px 12px; border:1px solid var(--line); border-radius:6px; background:var(--raised); color:var(--text); font-size:14px; line-height:1.45; box-shadow:0 4px 16px #0006; }
+        th[data-column-tooltip]:not([data-sort]) { cursor:help; }
         .sort-button:hover,.sort-active { color:var(--accent)!important; }
         .rank-cell,.team-cell__abbr { color:var(--muted); }
         .team-cell { font-weight:600; }
@@ -2029,10 +2031,78 @@
                 // First visit or changed data: populate results without a manual click.
                 await calculateRatings();
             }
+            initializeColumnTooltips();
             initializeFloatingHeader();
             showView();
         }
 
+
+        // Keep the popup outside scrolling tables so it cannot be clipped.
+        function initializeColumnTooltips() {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'column-tooltip';
+            tooltip.setAttribute('role', 'tooltip');
+            tooltip.hidden = true;
+            document.body.append(tooltip);
+            document.querySelectorAll('.results-table th[title]').forEach(header => {
+                const description = header.getAttribute('title');
+                header.setAttribute('data-column-tooltip', description);
+                header.removeAttribute('title');
+                const trigger = header.querySelector('button') || header;
+                trigger.removeAttribute('title');
+                trigger.setAttribute('aria-description', description);
+                if (trigger === header) trigger.tabIndex = 0;
+            });
+            let active = null;
+            let timer;
+            let lastShown = 0;
+            function hide() {
+                clearTimeout(timer);
+                tooltip.hidden = true;
+                active = null;
+            }
+            function show(header, immediate = false) {
+                clearTimeout(timer);
+                active = header;
+                const open = () => {
+                    if (!header.isConnected) return hide();
+                    tooltip.textContent = header.getAttribute('data-column-tooltip');
+                    tooltip.hidden = false;
+                    const rect = header.getBoundingClientRect();
+                    const popup = tooltip.getBoundingClientRect();
+                    tooltip.style.left = `${Math.max(12, Math.min(rect.left + (rect.width - popup.width) / 2, window.innerWidth - popup.width - 12))}px`;
+                    const below = rect.bottom + 8;
+                    tooltip.style.top = `${below + popup.height <= window.innerHeight - 12 ? below : Math.max(12, rect.top - popup.height - 8)}px`;
+                    lastShown = Date.now();
+                };
+                if (immediate || !tooltip.hidden || Date.now() - lastShown < 500) open();
+                else timer = setTimeout(open, 400);
+            }
+            document.addEventListener('pointerover', event => {
+                if (event.target === tooltip) { clearTimeout(timer); return; }
+                if (event.pointerType === 'touch') return;
+                const header = event.target.closest('th[data-column-tooltip]');
+                if (header && header !== active) show(header);
+            });
+            document.addEventListener('pointerout', event => {
+                if (active && active.contains(event.target) && !active.contains(event.relatedTarget) && !tooltip.contains(event.relatedTarget)) {
+                    clearTimeout(timer);
+                    timer = setTimeout(hide, 120);
+                }
+                else if (event.target === tooltip && !active?.contains(event.relatedTarget)) hide();
+            });
+            document.addEventListener('focusin', event => {
+                const header = event.target.closest('th[data-column-tooltip]');
+                if (header) show(header, true);
+            });
+            document.addEventListener('focusout', event => {
+                if (active?.contains(event.target)) hide();
+            });
+            document.addEventListener('keydown', event => { if (event.key === 'Escape') hide(); });
+            document.addEventListener('scroll', hide, true);
+            window.addEventListener('resize', hide);
+            window.addEventListener('hashchange', hide);
+        }
 
         function initializeFloatingHeader() {
             const original = document.querySelector('#results-section .results-table');

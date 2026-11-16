@@ -60,6 +60,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
         const actualSolver = performOLSRegression;
         performOLSRegression = (...args) => { solverCalls++; return actualSolver(...args); };
         initializeFloatingHeader = () => {};
+        initializeColumnTooltips = () => {};
         syncFloatingHeader = () => {};
         renderResultsTable = (results, gamesCount) => {
             appState.currentRatings = results.ratings;
