@@ -100,8 +100,33 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
         assert.equal(reloaded.context.renders[0].season, season);
         assert.equal(reloaded.context.renders[0].results.ratings.length, 31);
         assert.equal(reloaded.context.solverCalls, 0, 'Saved 31-team ratings restore without recomputation');
+        reloaded.run("const stale = readStored('ratings'); stale.results.ratings.find(team => team.team === 'LAR').teamName = 'Los Angeles Rams'; writeStored('ratings', stale)");
+        const staleNames = harness({csvText:historicalCSV, storage:new Map(reloaded.storage)});
+        await staleNames.context.initializeV2();
+        assert.ok(staleNames.context.solverCalls > 0, 'Saved current names for an old season are recalculated');
+        assert.equal(staleNames.context.renders[0].results.ratings.find(team => team.team === 'LAR').teamName, 'St. Louis Rams');
     }
     const currentCSV = lines.filter(line => !line.startsWith('2026_')).join('\n');
+    const historicalWithCurrent = `${header}\n${historicalCSV.trim().split('\n').slice(1).map(line => {
+        const [season, type, week, day, home, away, homeScore, awayScore, location] = line.split(',');
+        return [`${season}_${week}_${home}_${away}`,season,({WC:19,DIV:20,CON:21,SB:22})[type] || week,day,home,away,homeScore,awayScore,location].join(',');
+    }).join('\n')}\n${currentCSV.split('\n').slice(1).join('\n')}`;
+    const names = harness({csvText:historicalWithCurrent});
+    await names.context.initializeV2();
+    names.node('matchup-a').value = 'LAR';
+    names.node('matchup-b').value = 'WAS';
+    await names.node('season-select').change('2001');
+    for (const id of ['matchup-a', 'matchup-b']) {
+        assert.equal(names.node(id).options.find(option => option.value === 'LAR').textContent, 'St. Louis Rams');
+        assert.equal(names.node(id).options.find(option => option.value === 'WAS').textContent, 'Washington Redskins');
+    }
+    assert.equal(names.node('matchup-a').value, 'LAR', 'Season changes preserve franchise selection');
+    names.run("appState.schedule = appState.schedule.map(game => game.season === 2001 && game.week === 22 ? {...game, home_score:null, away_score:null} : game); location.hash = '#matchup'; showView()");
+    assert.match(names.node('weekly-games').children[0].children[1].textContent, /St\. Louis Rams vs\. New England Patriots/);
+    assert.match(names.node('weekly-games').children[0].children[2].textContent, /St\. Louis Rams|New England Patriots|Even matchup/);
+    await names.node('season-select').change('2025');
+    assert.equal(names.node('matchup-a').options.find(option => option.value === 'LAR').textContent, 'Los Angeles Rams');
+    assert.equal(names.node('matchup-b').options.find(option => option.value === 'WAS').textContent, 'Washington Commanders');
     const firstVisit = harness({csvText:currentCSV});
     await firstVisit.context.initializeV2();
     assert.equal(firstVisit.run('appState.sortColumn'),'rating');

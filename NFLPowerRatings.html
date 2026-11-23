@@ -461,6 +461,35 @@
             WSH: 'WAS',
         };
 
+        // Display identities for supported seasons (2001 onward). Keep the
+        // canonical franchise codes above for regression and matchup lookup.
+        function teamNameForSeason(team, season) {
+            const canonical = TEAM_ALIASES[team] || team;
+            if (canonical === 'LAR' && season < 2016) return 'St. Louis Rams';
+            if (canonical === 'LAC' && season < 2017) return 'San Diego Chargers';
+            if (canonical === 'LV' && season < 2020) return 'Oakland Raiders';
+            if (canonical === 'WAS' && season < 2020) return 'Washington Redskins';
+            if (canonical === 'WAS' && season < 2022) return 'Washington Football Team';
+            return TEAM_NAMES[canonical] || team;
+        }
+
+        function teamAbbrForSeason(team, season) {
+            const canonical = TEAM_ALIASES[team] || team;
+            if (canonical === 'LAR' && season < 2016) return 'STL';
+            if (canonical === 'LAC' && season < 2017) return 'SD';
+            if (canonical === 'LV' && season < 2020) return 'OAK';
+            return canonical;
+        }
+
+        function updateMatchupTeamNames() {
+            const season = Number(elements.seasonSelect.value);
+            for (const id of ['matchup-a', 'matchup-b']) {
+                for (const option of document.getElementById(id).options) {
+                    option.textContent = teamNameForSeason(option.value, season);
+                }
+            }
+        }
+
         /**
          * Week number to label mapping for display purposes.
          * Includes regular season weeks (1-18) and playoff rounds (19-22).
@@ -1086,7 +1115,7 @@
 
                 return {
                     team: teamAbbr,
-                    teamName: TEAM_NAMES[teamAbbr],
+                    teamName: teamNameForSeason(teamAbbr, games[0]?.season),
                     rating: rating,
                     wins: record.wins,
                     losses: record.losses,
@@ -1540,8 +1569,8 @@
                 row.innerHTML = `
           <td class="rank-cell">${originalRank}</td>
           <td class="team-cell">
-            <span class="team-cell__full">${teamName}</span><span class="team-cell__nickname">${teamName.split(' ').pop()}</span>
-            <span class="team-cell__abbr">${team}</span>
+            <span class="team-cell__full">${teamName}</span><span class="team-cell__nickname">${teamName === 'Washington Football Team' ? 'Football Team' : teamName.split(' ').pop()}</span>
+            <span class="team-cell__abbr">${teamAbbrForSeason(team, Number(elements.seasonSelect.value))}</span>
           </td>
           <td class="rating-cell numeric-cell ${ratingClass}">
             ${signedValue(rating)}
@@ -1792,6 +1821,7 @@
         }
         function updateWeekAvailability() {
             const season = Number(elements.seasonSelect.value);
+            updateMatchupTeamNames();
             const weeks = seasonWeekAvailability(season);
             const available = [...weeks].filter(([, week]) => week.recorded > 0).map(([number]) => number).sort((a,b) => a-b);
             const latest = available.at(-1);
@@ -1935,7 +1965,7 @@
                 date.textContent = parsed ? parsed.toLocaleDateString([], {month:'short', day:'numeric', timeZone:'UTC'}) : 'Date TBD';
                 const teams = document.createElement('span');
                 teams.className = 'weekly-game__teams';
-                teams.textContent = `${TEAM_NAMES[TEAM_ALIASES[game.away_team] || game.away_team] || game.away_team} ${game.location === 'Neutral' ? 'vs.' : 'at'} ${TEAM_NAMES[TEAM_ALIASES[game.home_team] || game.home_team] || game.home_team}${game.location === 'Neutral' ? ' · Neutral' : ''}`;
+                teams.textContent = `${teamNameForSeason(game.away_team, season)} ${game.location === 'Neutral' ? 'vs.' : 'at'} ${teamNameForSeason(game.home_team, season)}${game.location === 'Neutral' ? ' · Neutral' : ''}`;
                 const result = document.createElement('span');
                 result.className = 'weekly-game__prediction';
                 result.textContent = prediction?.text || 'Prediction unavailable';
@@ -1962,8 +1992,9 @@
             const b = document.getElementById('matchup-b').value;
             const output = document.getElementById('matchup-result');
             const venue = document.getElementById('matchup-venue');
-            venue.options[1].textContent = `${TEAM_NAMES[a]} home`;
-            venue.options[2].textContent = `${TEAM_NAMES[b]} home`;
+            const season = Number(elements.seasonSelect.value);
+            venue.options[1].textContent = `${teamNameForSeason(a, season)} home`;
+            venue.options[2].textContent = `${teamNameForSeason(b, season)} home`;
             output.classList.toggle('is-notice', a === b);
             document.querySelector('#matchup-view .table-container').hidden = a === b;
             document.getElementById('mobile-matchup').hidden = a === b;
@@ -2042,7 +2073,7 @@
             const saved = readStored('ratings');
             const expectedTeams = new Set(filterGames(appState.gamesData, Number(elements.seasonSelect.value), Number(elements.startWeekSelect.value), Number(elements.endWeekSelect.value))
                 .flatMap(game => [normalizeTeamAbbr(game.home_team), normalizeTeamAbbr(game.away_team)]).filter(Boolean));
-            if (appState.dataLoaded && saved && saved.version === 2 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === expectedTeams.size && new Set(saved.results.ratings.map(t => t.team)).size === expectedTeams.size && saved.results.ratings.every(t => expectedTeams.has(t.team) && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
+            if (appState.dataLoaded && saved && saved.version === 2 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === expectedTeams.size && new Set(saved.results.ratings.map(t => t.team)).size === expectedTeams.size && saved.results.ratings.every(t => expectedTeams.has(t.team) && t.teamName === teamNameForSeason(t.team, Number(elements.seasonSelect.value)) && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
                 renderResultsTable(saved.results, saved.gamesCount);
                 hideStatus();
             } else if (appState.dataLoaded) {
@@ -2199,7 +2230,7 @@
             const caption = table.createCaption();
             caption.textContent = 'Team comparison';
             const head = table.createTHead().insertRow();
-            for (const label of ['Metric', ...teams]) {
+            for (const label of ['Metric', ...teams.map(team => teamAbbrForSeason(team, Number(elements.seasonSelect.value)))]) {
                 const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; head.append(th);
             }
             const body = table.createTBody();

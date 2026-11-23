@@ -51,6 +51,9 @@ for (const season of [2001]) {
         const result = context.calculatePowerRatings(fit(selected), selected);
         assert.equal(result.ratings.length, 31);
         assert.ok(!result.ratings.some(team => team.team === 'HOU'));
+        for (const [team, name] of [['LAR', 'St. Louis Rams'], ['LAC', 'San Diego Chargers'], ['LV', 'Oakland Raiders'], ['WAS', 'Washington Redskins']]) {
+            assert.equal(result.ratings.find(rating => rating.team === team).teamName, name);
+        }
         assert.ok(result.ratings.every(team => Number.isFinite(team.rating)));
         close(result.ratings.reduce((sum, team) => sum + team.rating, 0), 0);
         assert.ok(Number.isFinite(result.homeFieldAdvantage));
@@ -64,6 +67,25 @@ assert.equal(smaller.ratings.length, 31);
 assert.ok(!smaller.ratings.some(team => team.team === 'WAS'));
 close(smaller.homeFieldAdvantage, 3);
 for (const team of smaller.ratings) close(team.rating, teams.indexOf(team.team) - 15);
+for (const [team, season, name, abbr] of [
+    ['STL', 2015, 'St. Louis Rams', 'STL'],
+    ['LAR', 2016, 'Los Angeles Rams', 'LAR'],
+    ['SD', 2016, 'San Diego Chargers', 'SD'],
+    ['LAC', 2017, 'Los Angeles Chargers', 'LAC'],
+    ['OAK', 2019, 'Oakland Raiders', 'OAK'],
+    ['LV', 2020, 'Las Vegas Raiders', 'LV'],
+    ['WAS', 2019, 'Washington Redskins', 'WAS'],
+    ['WSH', 2020, 'Washington Football Team', 'WAS'],
+    ['WAS', 2021, 'Washington Football Team', 'WAS'],
+    ['WAS', 2022, 'Washington Commanders', 'WAS'],
+]) {
+    assert.equal(context.teamNameForSeason(team, season), name);
+    assert.equal(context.teamAbbrForSeason(team, season), abbr);
+    const seasonalGames = games.map(game => ({...game, season}));
+    const result = context.calculatePowerRatings(baseline, seasonalGames);
+    const canonical = context.normalizeTeamAbbr(team);
+    assert.equal(result.ratings.find(rating => rating.team === canonical).teamName, name);
+}
 console.log('PASS: known coefficients, neutral HFA isolation, 2001 regular-season/playoff ratings, absent reference team, insufficient data and disconnected schedule guards.');
 if(process.argv[2]) {
  const sample=parseCSV(fs.readFileSync(process.argv[2],'utf8')).filter(g=>g.season===2026 && g.week<=7);
