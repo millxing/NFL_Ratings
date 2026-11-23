@@ -66,8 +66,6 @@ node tests/pbp-mode.cjs
 
 `tests/pbp-mode.cjs` uses the published `data/pbp` files and `tests/fixtures/games-2026.csv` (nflverse schedule, Weeks 1–10 complete; Week 11 has 12 of 13 games played). It checks that shown Offense + Defense equals the shown rating for every published team row, the Week 3 and Week 4 boundaries, the partial Week 11 (with loaded scores ahead of and behind the ratings file), matchups and venues, weekly predictions, method switching, reload, old saved settings, missing or stale files, mismatched imports, a season change during loading, and 2001's 31 teams. `tests/harness.cjs` is the shared test page harness.
 
-Design assessments and the remaining issue register are in [docs/design-review/SUMMARY.md](docs/design-review/SUMMARY.md).
-
 ## Deployment
 
 GitHub Pages publishes the repository root from the `main` branch. Push changes to `main` to update the site. No build step is required; `.nojekyll` enables plain static hosting.
