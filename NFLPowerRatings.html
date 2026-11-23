@@ -74,6 +74,10 @@
         .view-nav a:hover { color:var(--text); }
         .control-panel { display:grid; grid-template-columns:1fr; align-items:end; gap:16px; padding:18px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
         .controls-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+        /* Season is short; the method names are long; weeks fit "Week 11 — Partial". */
+        .controls-grid--ratings { grid-template-columns:minmax(0,.75fr) minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr); }
+        @media(max-width:1000px) { .controls-grid--ratings { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        :root[data-method="pbp"] .pd-only,:root:not([data-method="pbp"]) .pbp-only { display:none!important; }
         .form-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
         .form-field__label { font-size:13px; font-weight:600; color:var(--muted); }
         .form-field__select { width:100%; min-width:0; height:44px; padding:0 12px; background:var(--bg); border:1px solid #50616e; color:var(--text); border-radius:5px; cursor:pointer; }
@@ -171,9 +175,12 @@
         .skip-link:focus { top:8px; }
         @media(max-width:800px) {
             .container { padding:18px 20px; }
+            .controls-grid--ratings { grid-template-columns:repeat(2,minmax(0,1fr)); }
             .team-cell__abbr { display:none; }
             .scroll-hint { display:block; margin:0 0 10px; }
         }
+        /* Below this width two columns cut off "Opponent-adjusted Point Differential". */
+        @media(max-width:700px) { .controls-grid--ratings { grid-template-columns:1fr; gap:12px; } }
         @media(max-width:540px) {
             .container { padding:16px; }
             .app-bar { display:block; margin-bottom:18px; }
@@ -181,7 +188,7 @@
             .view-nav { gap:24px; margin-top:6px; }
             .view-nav a { padding:12px 0; font-size:15px; }
             .control-panel { padding:14px; }
-            .controls-grid { grid-template-columns:1fr; gap:12px; }
+            .controls-grid,.controls-grid--ratings { grid-template-columns:1fr; gap:12px; }
             .controls-grid .form-field:first-child { grid-column:1/-1; }
             #matchup-view .controls-grid { grid-template-columns:1fr; }
             .results-header { align-items:baseline; flex-wrap:wrap; }
@@ -230,13 +237,19 @@
                 </p>
             </div>
 
-            <div class="controls-grid">
+            <div class="controls-grid controls-grid--ratings">
                 <!-- Season Selector -->
                 <div class="form-field">
                     <label for="season-select" class="form-field__label">Season</label>
                     <select id="season-select" class="form-field__select">
                         <!-- Options populated dynamically -->
                     </select>
+                </div>
+
+                <!-- Rating Method Selector (options populated from METHOD_LABELS) -->
+                <div class="form-field">
+                    <label for="method-select" class="form-field__label">Rating method</label>
+                    <select id="method-select" class="form-field__select"></select>
                 </div>
 
                 <!-- Start Week Selector -->
@@ -289,7 +302,9 @@
                         <tr>
                             <th data-sort="rank" scope="col" aria-sort="none" title="Rank by power rating, with the highest-rated team first"><button class="sort-button" type="button" aria-label="Sort by rank" title="Rank by power rating, with the highest-rated team first. Click to sort; click again to reverse."><span class="sort-label">Rank </span></button></th>
                             <th data-sort="team" scope="col" aria-sort="none" title="NFL team name"><button class="sort-button" type="button" title="NFL team name. Click to sort; click again to reverse.">Team</button></th>
-                            <th data-sort="rating" scope="col" aria-sort="none" title="Estimated points above or below an average team on a neutral field"><button class="sort-button" type="button" title="Estimated points above or below an average team on a neutral field. Click to sort; click again to reverse.">Rating</button></th>
+                            <th data-sort="rating" data-rating-header scope="col" aria-sort="none" title="Estimated points above or below an average team on a neutral field"><button class="sort-button" type="button" title="Estimated points above or below an average team on a neutral field. Click to sort; click again to reverse.">Rating</button></th>
+                            <th class="pbp-only" data-sort="offense" scope="col" aria-sort="none" title="Offense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted offensive success per play. Offense + Defense = Rating. Positive is better."><button class="sort-button" type="button" title="Offense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted offensive success per play. Offense + Defense = Rating. Positive is better. Click to sort; click again to reverse.">Offense</button></th>
+                            <th class="pbp-only" data-sort="defense" scope="col" aria-sort="none" title="Defense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted success per play allowed. Offense + Defense = Rating. Positive is better."><button class="sort-button" type="button" title="Defense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted success per play allowed. Offense + Defense = Rating. Positive is better. Click to sort; click again to reverse.">Defense</button></th>
                             <th data-sort="wins" scope="col" aria-sort="none" title="Wins in completed games over the selected week range"><button class="sort-button" type="button" title="Wins in completed games over the selected week range. Click to sort; click again to reverse.">Wins</button></th>
                             <th data-sort="losses" scope="col" aria-sort="none" title="Losses in completed games over the selected week range"><button class="sort-button" type="button" title="Losses in completed games over the selected week range. Click to sort; click again to reverse.">Losses</button></th>
                             <th data-sort="ties" scope="col" aria-sort="none" title="Ties in completed games over the selected week range"><button class="sort-button" type="button" title="Ties in completed games over the selected week range. Click to sort; click again to reverse.">Ties</button></th>
@@ -297,7 +312,7 @@
                             <th data-sort="pointsScored" scope="col" aria-sort="none" title="Points for: total points scored in completed games over the selected week range"><button class="sort-button" type="button" title="Points for: total points scored in completed games over the selected week range" aria-label="Sort by points for: total points scored in completed games over the selected week range">PF</button></th>
                             <th data-sort="pointsAllowed" scope="col" aria-sort="none" title="Points against: total points allowed in completed games over the selected week range"><button class="sort-button" type="button" title="Points against: total points allowed in completed games over the selected week range" aria-label="Sort by points against: total points allowed in completed games over the selected week range">PA</button></th>
                             <th data-sort="pointdiff" scope="col" aria-sort="none" title="Average point differential per game (points scored minus points allowed) over the selected week range"><button class="sort-button" type="button" title="Average point differential per game (points scored minus points allowed) over the selected week range" aria-label="Sort by average point differential per game (points scored minus points allowed) over the selected week range">DIFF</button></th>
-                            <th data-sort="sos" scope="col" aria-sort="none" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range"><button class="sort-button" type="button" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range. Click to sort; click again to reverse.">SOS</button></th>
+                            <th class="pd-only" data-sort="sos" scope="col" aria-sort="none" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range"><button class="sort-button" type="button" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range. Click to sort; click again to reverse.">SOS</button></th>
                         </tr>
                     </thead>
                     <tbody id="results-body">
@@ -306,9 +321,9 @@
                 </table>
             </div>
 
-            <div class="table-help"><details><summary>How to read the ratings</summary><p>Rating estimates points above or below an average team on a neutral field. PF (points for) and PA (points against) are totals from completed games over the selected week range. DIFF is average scoring margin per game over that range; SOS is strength of schedule.</p></details></div>
+            <div class="table-help"><details><summary>How to read the ratings</summary><p class="pd-only">Rating estimates points above or below an average team on a neutral field. PF (points for) and PA (points against) are totals from completed games over the selected week range. DIFF is average scoring margin per game over that range; SOS is strength of schedule.</p><p class="pbp-only">The Efficiency rating also estimates points above or below an average team on a neutral field. It starts from each team's opponent-adjusted scrimmage efficiency: offensive success per play minus success per play allowed. That efficiency is then scaled to the spread of the Point Differential ratings for the same games. Offense and Defense split the rating into two parts in points, and the two parts add up to the rating. For both, positive is better. Point to a value to see the success rate compared with the league average. The rating uses only this season's plays from Week 1 through the selected week and excludes special teams. Record, PF, PA and DIFF use the same games. Ratings start when the point scale is available, usually at Week 3. Ratings before Week 6 rest on few games. The latest week can be partial: it then includes only the games completed when the play-by-play data was updated.</p></details></div>
             <!-- Home Field Advantage Display -->
-            <div class="hfa-display" title="Estimated using non-neutral games only, adjusting for team strength. Ratings then use all games with this estimate fixed; neutral sites receive zero home advantage.">
+            <div class="hfa-display" id="hfa-display" title="Estimated using non-neutral games only, adjusting for team strength. Ratings then use all games with this estimate fixed; neutral sites receive zero home advantage.">
                 <span class="hfa-display__label">Home Field Advantage:</span>
                 <span id="hfa-value" class="hfa-display__value">0.0</span>
                 <span class="hfa-display__unit">points</span>
@@ -325,7 +340,7 @@
                 <div class="form-field"><label for="matchup-venue" class="form-field__label">Venue</label><select id="matchup-venue" class="form-field__select"><option value="neutral">Neutral field</option><option value="a">Team A home</option><option value="b">Team B home</option></select></div>
               </div>
               <p id="matchup-result" aria-live="polite"></p>
-              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th title="Rank by power rating, with the highest-rated team first">Rank</th><th title="NFL team name">Team</th><th title="Estimated points above or below an average team on a neutral field">Rating</th><th title="Wins in completed games over the selected week range">W</th><th title="Losses in completed games over the selected week range">L</th><th title="Ties in completed games over the selected week range">T</th><th title="Points for: total points scored in completed games over the selected week range">PF</th><th title="Points against: total points allowed in completed games over the selected week range">PA</th><th title="Average point differential per game (points scored minus points allowed) over the selected week range">DIFF</th><th title="Strength of schedule adjustment: Rating minus average point differential over the selected week range">SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
+              <div class="table-container" tabindex="0" role="region" aria-label="Matchup statistics"><table class="results-table"><thead><tr><th title="Rank by power rating, with the highest-rated team first">Rank</th><th title="NFL team name">Team</th><th data-rating-header title="Estimated points above or below an average team on a neutral field">Rating</th><th class="pbp-only" title="Offense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted offensive success per play. Offense + Defense = Rating. Positive is better.">Off.</th><th class="pbp-only" title="Defense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted success per play allowed. Offense + Defense = Rating. Positive is better.">Def.</th><th title="Wins in completed games over the selected week range">W</th><th title="Losses in completed games over the selected week range">L</th><th title="Ties in completed games over the selected week range">T</th><th title="Points for: total points scored in completed games over the selected week range">PF</th><th title="Points against: total points allowed in completed games over the selected week range">PA</th><th title="Average point differential per game (points scored minus points allowed) over the selected week range">DIFF</th><th class="pd-only" title="Strength of schedule adjustment: Rating minus average point differential over the selected week range">SOS</th></tr></thead><tbody id="matchup-stats"></tbody></table></div>
               <div class="mobile-matchup" id="mobile-matchup"></div>
               </div>
               <section class="weekly-schedule" aria-labelledby="weekly-title">
@@ -339,7 +354,7 @@
             </section>
 
         <section class="data-status" aria-label="Data status">
-            <div class="data-summary"><span id="data-freshness" aria-live="polite">Loading game data…</span><details><summary>Source details</summary><div class="source-content"><p id="data-source"></p><div class="v2-actions"><button id="refresh-data" type="button">Refresh data</button><button id="import-data" type="button">Import CSV</button></div></div></details></div>
+            <div class="data-summary"><span id="data-freshness" aria-live="polite">Loading game data…</span><details><summary>Source details</summary><div class="source-content"><p id="data-source"></p><p id="pbp-source"></p><div class="v2-actions"><button id="refresh-data" type="button">Refresh data</button><button id="import-data" type="button">Import CSV</button></div></div></details></div>
             <p id="storage-note" role="status"></p>
         </section>
 
@@ -529,6 +544,7 @@
             seasonSelect: document.getElementById('season-select'),
             startWeekSelect: document.getElementById('start-week-select'),
             endWeekSelect: document.getElementById('end-week-select'),
+            methodSelect: document.getElementById('method-select'),
             statusMessage: document.getElementById('status-message'),
             resultsSection: document.getElementById('results-section'),
             resultsBody: document.getElementById('results-body'),
@@ -564,6 +580,11 @@
             sortColumn: 'rating',
             /** @type {string} Current sort direction ('asc' or 'desc') */
             sortDirection: 'desc',
+            /** @type {'pd'|'pbp'} Rating method: Point Differential or Efficiency */
+            method: 'pd',
+            /** @type {?{start: string, end: string}} Point Differential range to restore after Efficiency */
+            pdRange: null,
+            hiddenSort: null,       // A sort on a column the current method hides; restored when it returns.
         };
 
         // =========================================================================
@@ -1130,7 +1151,7 @@
             // Sort ratings in descending order (best teams first)
             ratings.sort((a, b) => b.rating - a.rating);
 
-            return { homeFieldAdvantage, ratings };
+            return { method: 'pd', homeFieldAdvantage, ratings };
         }
 
         // =========================================================================
@@ -1361,6 +1382,332 @@
         }
 
         // =========================================================================
+        // PLAY-BY-PLAY SLATE IDENTITY
+        // =========================================================================
+
+        // One line per completed regular-season game through the cutoff:
+        // season,week,home,away,home score,away score,H|N. The Python producer
+        // builds the same text from play-by-play data; equal digests prove that
+        // both methods describe the same games, scores and venues.
+        function pbpSlateGames(games, season, throughWeek) {
+            return games.filter(game => game.season === season && game.week >= 1 && game.week <= Math.min(throughWeek, 18)
+                && isValidScore(game.home_score) && isValidScore(game.away_score));
+        }
+        function pbpGameLine(game, season) {
+            const location = String(game.location || '').toLowerCase().trim();
+            const venue = location === 'home' || location === '' ? 'H' : 'N';
+            return [season, game.week, normalizeTeamAbbr(game.home_team), normalizeTeamAbbr(game.away_team),
+                Number(game.home_score), Number(game.away_score), venue].join(',');
+        }
+        function pbpSlateText(games, season, throughWeek) {
+            return pbpSlateGames(games, season, throughWeek).map(game => pbpGameLine(game, season)).sort().join('\n');
+        }
+        function pbpSlateDigest(games, season, throughWeek) {
+            return sha256Hex(pbpSlateText(games, season, throughWeek));
+        }
+
+        // Synchronous SHA-256 so the check also works when the file is opened directly.
+        const SHA256_K = [
+            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+            0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+            0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+            0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+            0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+            0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+        ];
+        function sha256Hex(text) {
+            const bytes = [];
+            for (const char of String(text)) {
+                const c = char.codePointAt(0);
+                if (c < 0x80) bytes.push(c);
+                else if (c < 0x800) bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+                else if (c < 0x10000) bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+                else bytes.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+            }
+            const bitLength = bytes.length * 8;
+            bytes.push(0x80);
+            while (bytes.length % 64 !== 56) bytes.push(0);
+            const high = Math.floor(bitLength / 2 ** 32);
+            for (let i = 3; i >= 0; i -= 1) bytes.push((high >>> (i * 8)) & 255);
+            for (let i = 3; i >= 0; i -= 1) bytes.push((bitLength >>> (i * 8)) & 255);
+            const ror = (x, n) => (x >>> n) | (x << (32 - n));
+            let state = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+            const w = new Array(64);
+            for (let offset = 0; offset < bytes.length; offset += 64) {
+                for (let i = 0; i < 16; i += 1) {
+                    const j = offset + i * 4;
+                    w[i] = ((bytes[j] << 24) | (bytes[j + 1] << 16) | (bytes[j + 2] << 8) | bytes[j + 3]) >>> 0;
+                }
+                for (let i = 16; i < 64; i += 1) {
+                    const s0 = ror(w[i - 15], 7) ^ ror(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+                    const s1 = ror(w[i - 2], 17) ^ ror(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+                    w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+                }
+                let [a, b, c, d, e, f, g, h] = state;
+                for (let i = 0; i < 64; i += 1) {
+                    const t1 = (h + (ror(e, 6) ^ ror(e, 11) ^ ror(e, 25)) + ((e & f) ^ (~e & g)) + SHA256_K[i] + w[i]) >>> 0;
+                    const t2 = ((ror(a, 2) ^ ror(a, 13) ^ ror(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+                    h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+                }
+                state = state.map((value, i) => (value + [a, b, c, d, e, f, g, h][i]) >>> 0);
+            }
+            return state.map(value => value.toString(16).padStart(8, '0')).join('');
+        }
+
+        // =========================================================================
+        // PLAY-BY-PLAY RATING ASSETS
+        // =========================================================================
+        // Static files built by the DVOA producer (python3 -m ratings.site). Each
+        // file is a script that calls a register function, so loading also works
+        // when this page is opened directly from disk.
+
+        const PBP_ASSET_BASE = 'data/pbp/';
+        const PBP_SCHEMA = 2;
+        const PBP_MODEL = 'pbp-season-only-v1';
+        const PBP_LOAD_TIMEOUT_MS = 15000;
+        const METHOD_LABELS = {pd: 'Point Differential', pbp: 'Efficiency'};
+        // Full names for the Rating method menu; sentences use the short names above.
+        const METHOD_MENU_LABELS = {pd: 'Opponent-adjusted Point Differential', pbp: 'Opponent-adjusted Efficiency'};
+        const RATING_DESCRIPTIONS = {
+            pd: 'Estimated points above or below an average team on a neutral field',
+            pbp: 'Efficiency rating: estimated points above or below an average team on a neutral field. Scrimmage efficiency scaled to the spread of the Point Differential ratings for the same games. Equals Offense + Defense',
+        };
+        const HFA_DESCRIPTIONS = {
+            pd: 'Estimated using non-neutral games only, adjusting for team strength. Ratings then use all games with this estimate fixed; neutral sites receive zero home advantage.',
+            pbp: 'From the Point Differential fit of the same games (non-neutral games only). Efficiency matchups add it for the home team; neutral sites receive zero home advantage.',
+        };
+        const pbpState = {
+            manifest: null,
+            manifestError: '',
+            manifestPromise: null,
+            seasons: new Map(),
+            seasonPromises: new Map(),
+            seasonErrors: new Map(),
+            received: {manifest: null, seasons: new Map()},
+        };
+
+        // Called by data/pbp/manifest.js and data/pbp/season-YYYY.js.
+        function registerPbpManifest(payload) { pbpState.received.manifest = payload; }
+        function registerPbpSeason(payload) {
+            if (payload && Number.isInteger(payload.season)) pbpState.received.seasons.set(payload.season, payload);
+        }
+
+        function loadPbpScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                const finish = (error) => {
+                    clearTimeout(timer);
+                    script.remove();
+                    if (error) reject(error); else resolve();
+                };
+                const timer = setTimeout(() => finish(new Error('timed out')), PBP_LOAD_TIMEOUT_MS);
+                script.async = true;
+                script.onload = () => finish();
+                script.onerror = () => finish(new Error('file could not be loaded'));
+                script.src = url;
+                document.head.append(script);
+            });
+        }
+
+        function loadPbpManifest(force = false) {
+            if (pbpState.manifestPromise && !force) return pbpState.manifestPromise;
+            if (force) {
+                // Refresh data retries season files that failed earlier.
+                for (const key of pbpState.seasonErrors.keys()) pbpState.seasonPromises.delete(key);
+                pbpState.seasonErrors.clear();
+            }
+            pbpState.received.manifest = null;
+            const promise = loadPbpScript(`${PBP_ASSET_BASE}manifest.js?t=${Date.now()}`)
+                .then(() => {
+                    const manifest = pbpState.received.manifest;
+                    if (!manifest || manifest.schema !== PBP_SCHEMA || manifest.model !== PBP_MODEL || !manifest.seasons) {
+                        throw new Error('unsupported data index');
+                    }
+                    pbpState.manifest = manifest;
+                    pbpState.manifestError = '';
+                    return manifest;
+                })
+                .catch(error => {
+                    pbpState.manifest = null;
+                    pbpState.manifestError = `The Efficiency data index could not be loaded (${error.message}).`;
+                    return null;
+                })
+                .finally(updatePbpSourceNote);
+            pbpState.manifestPromise = promise;
+            return promise;
+        }
+
+        function pbpSeasonEntry(season) {
+            const entry = pbpState.manifest?.seasons?.[String(season)];
+            return entry && Array.isArray(entry.weeks) ? entry : null;
+        }
+        function pbpSeasonKey(season) {
+            const entry = pbpSeasonEntry(season);
+            return entry ? `${season}:${entry.build}` : '';
+        }
+        function pbpSeasonData(season) { return pbpState.seasons.get(pbpSeasonKey(season)) || null; }
+
+        function loadPbpSeason(season) {
+            const entry = pbpSeasonEntry(season);
+            const key = pbpSeasonKey(season);
+            if (!entry) return Promise.resolve(null);
+            if (pbpState.seasonPromises.has(key)) return pbpState.seasonPromises.get(key);
+            pbpState.received.seasons.delete(season);
+            const promise = loadPbpScript(`${PBP_ASSET_BASE}${entry.file}?v=${encodeURIComponent(entry.build)}`)
+                .then(() => {
+                    const data = pbpState.received.seasons.get(season);
+                    if (!data) throw new Error('the season file contained no data');
+                    if (data.schema !== PBP_SCHEMA || data.model !== PBP_MODEL || data.season !== season || !Array.isArray(data.snapshots)) {
+                        throw new Error('unsupported season file');
+                    }
+                    if (data.build !== entry.build) throw new Error('the season file does not match the data index; reload the page');
+                    pbpState.seasons.set(key, data);
+                    return data;
+                })
+                .catch(error => {
+                    pbpState.seasonErrors.set(key, `Efficiency data for ${season} could not be loaded (${error.message}).`);
+                    return null;
+                });
+            pbpState.seasonPromises.set(key, promise);
+            return promise;
+        }
+
+        async function ensurePbpSeason(season) {
+            await loadPbpManifest();
+            return loadPbpSeason(season);
+        }
+
+        function pbpFirstCutoff(season) { return pbpSeasonEntry(season)?.weeks[0] ?? null; }
+        // Short form fits the End Week menu; the long form is for sentences.
+        function pbpPartialLabel(entry, week, long = false) {
+            const partial = entry?.partial;
+            if (!partial || partial.week !== week) return '';
+            return long ? `partial, ${partial.games} of ${partial.scheduled} games` : 'Partial';
+        }
+
+        // Locate the snapshot through one completed week. Returns {snapshot, data}
+        // or {error, loading}. Errors are complete sentences for the page.
+        function pbpSnapshot(season, week) {
+            if (!pbpState.manifest) {
+                return pbpState.manifestError ? {error: pbpState.manifestError} : {error: 'Loading Efficiency data.', loading: true};
+            }
+            const entry = pbpSeasonEntry(season);
+            if (!entry || !entry.weeks.length) return {error: `No Efficiency ratings are published for the ${season} season.`};
+            if (week > 18) return {error: 'Efficiency ratings cover regular-season weeks only.'};
+            if (!entry.weeks.includes(week)) {
+                if (entry.unavailable?.[week]) return {error: `${WEEK_LABELS[week]} Efficiency ratings were not published: ${entry.unavailable[week]}.`};
+                if (week < entry.weeks[0]) return {error: `${season} Efficiency ratings start at ${WEEK_LABELS[entry.weeks[0]]}.`};
+                return {error: `Efficiency data for ${season} currently ends at ${WEEK_LABELS[entry.latestWeek]}.`};
+            }
+            const data = pbpSeasonData(season);
+            if (!data) {
+                const error = pbpState.seasonErrors.get(pbpSeasonKey(season));
+                return error ? {error} : {error: 'Loading Efficiency data.', loading: true};
+            }
+            const snapshot = data.snapshots.find(item => item.week === week && item.available);
+            return snapshot ? {snapshot, data} : {error: `${WEEK_LABELS[week]} Efficiency ratings are missing from the season file.`};
+        }
+
+        // Match the snapshot's games with the loaded scores. Returns the loaded
+        // games it covers, plus later-finished games of a partial week, or null.
+        function pbpMatchGames(snapshot, season, week) {
+            const loaded = pbpSlateGames(appState.gamesData, season, week);
+            if (pbpSlateDigest(appState.gamesData, season, week) === snapshot.slateDigest) return {games: loaded, pending: []};
+            // A partial week can have games that finished after the play-by-play update.
+            if (!snapshot.partial || pbpSlateDigest(appState.gamesData, season, week - 1) !== snapshot.priorDigest) return null;
+            const included = new Set(snapshot.weekLines);
+            const thisWeek = loaded.filter(game => game.week === week);
+            const lines = new Set(thisWeek.map(game => pbpGameLine(game, season)));
+            if (lines.size !== thisWeek.length || snapshot.weekLines.some(line => !lines.has(line))) return null;
+            return {
+                games: loaded.filter(game => game.week < week || included.has(pbpGameLine(game, season))),
+                pending: thisWeek.filter(game => !included.has(pbpGameLine(game, season))),
+            };
+        }
+        // Rounded Offense and Defense that add up to the rounded rating: the
+        // part with the larger rounding error takes the 0.1 difference.
+        function pbpShownParts(team) {
+            const round = value => Number(value.toFixed(1));
+            const parts = {offense: round(team.offense), defense: round(team.defense)};
+            const gap = Math.round((round(team.rating) - parts.offense - parts.defense) * 10) / 10;
+            if (gap !== 0) {
+                // Move the part whose shown value is furthest from its true value in the gap's direction.
+                const key = (team.offense - parts.offense) * gap >= (team.defense - parts.defense) * gap ? 'offense' : 'defense';
+                parts[key] = Math.round((parts[key] + gap) * 10) / 10;
+            }
+            return parts;
+        }
+        function pbpPercentText(value, label) {
+            return Number.isFinite(value) ? `${label}: ${signedValue(value)}% compared with the league average` : '';
+        }
+
+        // Combine a snapshot with records from the active scores, after proving
+        // that both describe the same completed games.
+        function pbpResultsFor(season, week) {
+            const found = pbpSnapshot(season, week);
+            if (!found.snapshot) return found;
+            const {snapshot, data} = found;
+            const matched = pbpMatchGames(snapshot, season, week);
+            if (!matched) {
+                const count = filterGames(appState.gamesData, season, 1, week).length;
+                return {error: `The loaded game results for Weeks 1–${week} (${count} games) do not match the play-by-play game slate (${snapshot.games} games). Refresh data or use Point Differential.`};
+            }
+            const games = matched.games;
+            const pending = matched.pending.map(game => `${teamNameForSeason(game.away_team, season)} ${game.location === 'Neutral' ? 'vs.' : 'at'} ${teamNameForSeason(game.home_team, season)}`);
+            const note = pending.length
+                ? `${WEEK_LABELS[week]} Efficiency ratings include ${snapshot.weekGames} completed games. Not yet included: ${pending.join(', ')}.`
+                : snapshot.partial ? `${WEEK_LABELS[week]} is partial: ${snapshot.weekGames} of ${snapshot.weekScheduled} games.` : '';
+            const records = calculateTeamRecords(games);
+            const decomposition = calculateRatingDecomposition(games);
+            const activeTeams = new Set(games.flatMap(game => [normalizeTeamAbbr(game.home_team), normalizeTeamAbbr(game.away_team)]));
+            const ratings = snapshot.teams.map(row => {
+                const team = normalizeTeamAbbr(row.team);
+                return {
+                    team,
+                    teamName: teamNameForSeason(team, season),
+                    rating: row.points,
+                    rank: row.rank,
+                    offense: row.offense,
+                    defense: row.defense,
+                    offensePct: row.offensePct,
+                    defensePct: row.defensePct,
+                    wins: records[team]?.wins,
+                    losses: records[team]?.losses,
+                    ties: records[team]?.ties,
+                    avgPointDiff: decomposition[team]?.avgPointDiff,
+                    pointsScored: decomposition[team]?.pointsScored,
+                    pointsAllowed: decomposition[team]?.pointsAllowed,
+                    sos: null,
+                };
+            });
+            const valid = ratings.length === activeTeams.size
+                && ratings.every(team => activeTeams.has(team.team) && [team.rating, team.offense, team.defense].every(Number.isFinite))
+                && Number.isFinite(snapshot.hfa);
+            if (!valid) return {error: `The ${season} Week ${week} Efficiency ratings file does not match the active teams.`};
+            ratings.sort((a, b) => a.rank - b.rank || b.rating - a.rating);
+            return {
+                results: {method: 'pbp', build: data.build, throughWeek: week, homeFieldAdvantage: snapshot.hfa, ratings, note},
+                gamesCount: games.length,
+            };
+        }
+
+        function updatePbpSourceNote() {
+            const note = document.getElementById('pbp-source');
+            if (!note) return;
+            const manifest = pbpState.manifest;
+            if (!manifest) {
+                note.textContent = pbpState.manifestError || 'Efficiency data: loading.';
+                return;
+            }
+            const built = new Date(manifest.updated).toLocaleDateString([], {month: 'short', day: 'numeric', year: 'numeric'});
+            const latest = manifest.latest ? `${manifest.latest.season} ${WEEK_LABELS[manifest.latest.week]}` : 'none';
+            const scope = manifest.latest ? pbpSeasonEntry(manifest.latest.season)?.sourceScope : '';
+            note.textContent = `Efficiency ratings: nflverse play-by-play files, seasons ${manifest.coverage?.join('–') || 'none'}, regular season only. Latest cutoff ${latest}${scope ? ` (source scope: ${scope})` : ''}. Built ${built}. Each rating uses only that season's games through the cutoff.`;
+        }
+
+        // =========================================================================
         // UI POPULATION AND RENDERING
         // =========================================================================
 
@@ -1461,6 +1808,8 @@
                         break;
                     case 'pointsScored':
                     case 'pointsAllowed':
+                    case 'offense':
+                    case 'defense':
                         comparison = a[sortColumn] - b[sortColumn];
                         break;
                     case 'rank':
@@ -1507,11 +1856,13 @@
 
             const column = header.getAttribute('data-sort');
 
+            appState.hiddenSort = null;
             // Toggle direction if same column, otherwise default to desc
             if (column === appState.sortColumn) {
                 appState.sortDirection = appState.sortDirection === 'asc' ? 'desc' : 'asc';
             } else {
                 appState.sortColumn = column;
+                // Lower is better for rank and team order.
                 appState.sortDirection = ['rank', 'team'].includes(column) ? 'asc' : 'desc';
             }
 
@@ -1532,11 +1883,11 @@
 
             // Render each team row
             sortedRatings.forEach((teamData, index) => {
-                // Calculate display rank based on rating (not sort position)
-                const originalRank = appState.currentRatings
-                    .filter((t) => t.rating > teamData.rating).length + 1;
+                // Display rank comes from the rating, not the sort position.
+                const originalRank = teamRank(teamData);
 
-                const { team, teamName, rating, wins, losses, ties, pointsScored, pointsAllowed, avgPointDiff, sos } = teamData;
+                const { team, teamName, rating, wins, losses, ties, pointsScored, pointsAllowed, avgPointDiff, sos, offense, defense } = teamData;
+                const pbp = Number.isFinite(offense);
 
                 // Create table row
                 const row = document.createElement('tr');
@@ -1559,11 +1910,19 @@
 
                 // Determine SOS color class (positive SOS means harder schedule)
                 let sosClass = 'rating-cell--neutral';
-                if (sos > 0.5) {
+                if (!Number.isFinite(sos)) {
+                    sosClass = '';
+                } else if (sos > 0.5) {
                     sosClass = 'rating-cell--positive';
                 } else if (sos < -0.5) {
                     sosClass = 'rating-cell--negative';
                 }
+
+                // Offense and Defense are points; positive is better for both.
+                const parts = pbp ? pbpShownParts(teamData) : null;
+                const partClass = value => value > 0.5 ? 'rating-cell--positive' : value < -0.5 ? 'rating-cell--negative' : 'rating-cell--neutral';
+                const offenseClass = pbp ? partClass(offense) : '';
+                const defenseClass = pbp ? partClass(defense) : '';
 
                 // Build row HTML
                 row.innerHTML = `
@@ -1575,6 +1934,8 @@
           <td class="rating-cell numeric-cell ${ratingClass}">
             ${signedValue(rating)}
           </td>
+          <td class="rating-cell numeric-cell pbp-only ${offenseClass}" title="${pbp ? pbpPercentText(teamData.offensePct, 'Offensive success per play') : ''}">${pbp ? signedValue(parts.offense) : ''}</td>
+          <td class="rating-cell numeric-cell pbp-only ${defenseClass}" title="${pbp ? pbpPercentText(teamData.defensePct, 'Success per play allowed (negative is better)') : ''}">${pbp ? signedValue(parts.defense) : ''}</td>
           <td class="record-cell">${wins}</td>
           <td class="record-cell">${losses}</td>
           <td class="record-cell">${ties}</td>
@@ -1583,8 +1944,8 @@
           <td class="rating-cell numeric-cell ${pointDiffClass}">
             ${signedValue(avgPointDiff)}
           </td>
-          <td class="rating-cell numeric-cell ${sosClass}">
-            ${signedValue(sos)}
+          <td class="rating-cell numeric-cell pd-only ${sosClass}">
+            ${Number.isFinite(sos) ? signedValue(sos) : ''}
           </td>
         `;
 
@@ -1610,7 +1971,8 @@
 
             // Update games count display
             elements.gamesCount.textContent = gamesCount;
-            document.getElementById('results-range').textContent = `${elements.seasonSelect.value}, W${elements.startWeekSelect.value}–${elements.endWeekSelect.value}`;
+            const method = results.method === 'pbp' ? 'pbp' : 'pd';
+            document.getElementById('results-range').textContent = `${elements.seasonSelect.value}, W${elements.startWeekSelect.value}–${elements.endWeekSelect.value} · ${METHOD_LABELS[method]}`;
 
             // Update home field advantage display
             hfaValue.textContent = results.homeFieldAdvantage.toFixed(2);
@@ -1627,8 +1989,8 @@
 
             // Show results section with animation
             resultsSection.classList.add('results-section--visible');
-            document.getElementById('analysis-context').textContent = `Season ${elements.seasonSelect.value}, weeks ${elements.startWeekSelect.value}–${elements.endWeekSelect.value}. Calculated power ratings.`;
-            writeStored('ratings', {version:2, dataKey:ratingsDataKey(), season:elements.seasonSelect.value, start:elements.startWeekSelect.value, end:elements.endWeekSelect.value, gamesCount, results});
+            document.getElementById('analysis-context').textContent = `Season ${elements.seasonSelect.value}, weeks ${elements.startWeekSelect.value}–${elements.endWeekSelect.value}. ${METHOD_LABELS[method]} power ratings.${results.note ? ` ${results.note}` : ''}`;
+            saveResults(results, gamesCount);
             updateMatchup();
             showView();
             syncFloatingHeader();
@@ -1657,6 +2019,20 @@
                 // Coalesce quick changes and let the browser paint loading feedback.
                 if (!immediate) await new Promise(resolve => setTimeout(resolve, 120));
                 if (version !== calculationVersion) return;
+                if (appState.method === 'pbp') {
+                    // A late season-file response must not overwrite a newer selection.
+                    await ensurePbpSeason(season);
+                    if (version !== calculationVersion) return;
+                    const outcome = pbpResultsFor(season, endWeek);
+                    if (!outcome.results) {
+                        showStatus(`Efficiency ratings unavailable. ${outcome.error}`, 'error');
+                        return;
+                    }
+                    savePreferences();
+                    renderResultsTable(outcome.results, outcome.gamesCount);
+                    hideStatus();
+                    return;
+                }
                 const filteredGames = filterGames(appState.gamesData, season, startWeek, endWeek);
                 if (filteredGames.length < NUM_TEAMS) {
                     showStatus(`Only ${filteredGames.length} recorded ${filteredGames.length === 1 ? 'game' : 'games'} in this range. Select more weeks; at least ${NUM_TEAMS} games are needed.`, 'error');
@@ -1827,6 +2203,10 @@
             const latest = available.at(-1);
             const start = elements.startWeekSelect;
             const end = elements.endWeekSelect;
+            if (appState.method === 'pbp') {
+                updatePbpWeekAvailability(season, weeks, latest);
+                return;
+            }
             if (latest !== undefined) {
                 if (!available.includes(Number(start.value))) start.value = String(available[0]);
                 if (!available.includes(Number(end.value))) end.value = String(latest);
@@ -1858,6 +2238,110 @@
                 return `${WEEK_LABELS[number]}${status ? ` · ${status}` : ''} · ${count} ${appState.completeSchedule && week.total ? 'games' : week.recorded === 1 ? 'game' : 'games'} recorded`;
             };
             summary.textContent = `${season} latest results: ${describe(latest)}.${Number(end.value) !== latest ? ` Selected end: ${describe(Number(end.value))}.` : ''}`;
+        }
+        // Efficiency v1 is season-to-date: Start Week stays at Week 1 and End Week
+        // offers only published completed cutoffs.
+        function updatePbpWeekAvailability(season, weeks, latestResult) {
+            const start = elements.startWeekSelect;
+            const end = elements.endWeekSelect;
+            const entry = pbpSeasonEntry(season);
+            const cutoffs = entry?.weeks ?? [];
+            start.value = '1';
+            if (cutoffs.length && !cutoffs.includes(Number(end.value))) {
+                end.value = String([...cutoffs].reverse().find(week => week <= Number(end.value)) ?? cutoffs[0]);
+            }
+            start.disabled = true;
+            end.disabled = appState.loadingData || !cutoffs.length;
+            for (const option of start.options) {
+                option.textContent = WEEK_LABELS[option.value];
+                option.disabled = option.value !== '1';
+            }
+            for (const option of end.options) {
+                const number = Number(option.value);
+                const status = !weeks.get(number)?.recorded ? 'No results' : cutoffs.includes(number) ? pbpPartialLabel(entry, number) : 'Not available';
+                option.textContent = `${WEEK_LABELS[number]}${status ? ` — ${status}` : ''}`;
+                option.disabled = !cutoffs.includes(number);
+            }
+            syncWeekScrubber();
+            const summary = document.getElementById('week-availability');
+            if (latestResult === undefined) summary.textContent = `${season}: no results available yet.`;
+            else if (!cutoffs.length) summary.textContent = `${season}: Efficiency ratings are not available.`;
+            else {
+                const partial = pbpPartialLabel(entry, entry.latestWeek, true);
+                summary.textContent = `${season} Efficiency ratings available through ${WEEK_LABELS[entry.latestWeek]}${partial ? ` (${partial})` : ''}. Selected: Week 1 to ${WEEK_LABELS[end.value]}.`;
+            }
+        }
+        function setColumnDescription(header, text) {
+            const trigger = header.querySelector('button') || header;
+            if (header.hasAttribute('data-column-tooltip')) {
+                header.setAttribute('data-column-tooltip', text);
+                trigger.setAttribute('aria-description', text);
+            } else {
+                header.setAttribute('title', text);
+                if (trigger !== header) trigger.setAttribute('title', `${text}. Click to sort; click again to reverse.`);
+            }
+        }
+        // Columns follow the method through CSS on the root element (both tables and the floating header).
+        function applyMethodPresentation() {
+            const method = appState.method;
+            document.documentElement?.setAttribute('data-method', method);
+            elements.methodSelect.value = method;
+            const hidden = method === 'pbp' ? ['sos'] : ['offense', 'defense'];
+            // Keep the sort across methods. A column this method hides sorts by Rating
+            // for now, and its sort returns when you switch back.
+            if (appState.hiddenSort && !hidden.includes(appState.hiddenSort.column)) {
+                appState.sortColumn = appState.hiddenSort.column;
+                appState.sortDirection = appState.hiddenSort.direction;
+                appState.hiddenSort = null;
+                updateSortHeaders();
+            }
+            if (hidden.includes(appState.sortColumn)) {
+                appState.hiddenSort = {column: appState.sortColumn, direction: appState.sortDirection};
+                appState.sortColumn = 'rating';
+                appState.sortDirection = 'desc';
+                updateSortHeaders();
+            }
+            document.querySelectorAll('[data-rating-header]').forEach(header => setColumnDescription(header, RATING_DESCRIPTIONS[method]));
+            document.getElementById('hfa-display').title = HFA_DESCRIPTIONS[method];
+        }
+        async function handleMethodChange() {
+            const method = elements.methodSelect.value === 'pbp' ? 'pbp' : 'pd';
+            if (method === appState.method) return;
+            document.getElementById('range-adjustment').textContent = '';
+            // Season and weeks stay the same across methods. Efficiency can only
+            // change what it cannot show (Start Week, an unpublished End Week);
+            // switching back undoes only those forced changes.
+            const season = elements.seasonSelect.value;
+            const before = {start: elements.startWeekSelect.value, end: elements.endWeekSelect.value};
+            if (method === 'pbp') appState.pdRange = {season, ...before, pbpEnd: null};
+            appState.method = method;
+            applyMethodPresentation();
+            const saved = appState.pdRange;
+            if (method === 'pd' && saved?.season === season) {
+                if (before.end === saved.pbpEnd) elements.endWeekSelect.value = saved.end;
+                if (Number(saved.start) <= Number(elements.endWeekSelect.value)) elements.startWeekSelect.value = saved.start;
+            }
+            if (method === 'pbp' && !pbpState.manifest) {
+                ++calculationVersion; // Drop any calculation for the previous method.
+                invalidateResults();
+                updateWeekAvailability();
+                showStatus('Loading Efficiency data…', 'loading');
+                await loadPbpManifest();
+                if (appState.method !== 'pbp') return;
+            }
+            updateWeekAvailability();
+            if (method === 'pbp') {
+                const start = elements.startWeekSelect.value;
+                const end = elements.endWeekSelect.value;
+                appState.pdRange.pbpEnd = end;
+                const changes = [];
+                if (start !== before.start) changes.push(`Start Week changed from ${WEEK_LABELS[before.start]} to Week 1 for Efficiency.`);
+                if (end !== before.end && pbpSeasonEntry(Number(season))?.weeks.length) changes.push(`End Week changed from ${WEEK_LABELS[before.end]} to ${WEEK_LABELS[end]}: ${WEEK_LABELS[before.end]} has no Efficiency ratings.`);
+                // Screen-reader status only, like other automatic range changes.
+                if (changes.length) document.getElementById('range-adjustment').textContent = `${changes.join(' ')} Point Differential returns to ${WEEK_LABELS[before.start]}–${WEEK_LABELS[before.end]} if you switch back without changing End Week.`;
+            }
+            savePreferences();
+            return calculateRatings();
         }
         // Slider positions map to selectable weeks so gaps and future weeks are skipped.
         function scrubberWeeks(endpoint = 'end') {
@@ -1891,7 +2375,15 @@
             return calculateRatings({ immediate: true });
         }
         function savePreferences() {
-            writeStored('preferences', {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
+            const pdRange = appState.method === 'pd' ? {season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, pbpEnd: null} : appState.pdRange;
+            writeStored('preferences', {season: elements.seasonSelect.value, method: appState.method, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, pdSeason: pdRange?.season, pdStart: pdRange?.start, pdEnd: pdRange?.end, pdPbpEnd: pdRange?.pbpEnd, teamA:document.getElementById('matchup-a').value, teamB:document.getElementById('matchup-b').value, venue:document.getElementById('matchup-venue').value});
+        }
+        // Saved results are reused only for the same method, games, range and Efficiency file.
+        function saveResults(results, gamesCount) {
+            writeStored('ratings', {version: 3, method: results.method === 'pbp' ? 'pbp' : 'pd', pbpBuild: results.build || null, dataKey: ratingsDataKey(), season: elements.seasonSelect.value, start: elements.startWeekSelect.value, end: elements.endWeekSelect.value, gamesCount, results});
+        }
+        function teamRank(team) {
+            return Number.isInteger(team.rank) ? team.rank : appState.currentRatings.filter(other => other.rating > team.rating).length + 1;
         }
         function invalidateResults() {
             appState.currentRatings = [];
@@ -1906,9 +2398,16 @@
         let scheduleSeason = null;
         let forecastCache = null;
         function weeklyForecast(season, week) {
-            if (forecastCache?.data === appState.gamesData && forecastCache.season === season && forecastCache.week === week) return forecastCache;
+            const method = appState.method;
+            // The key covers method, scores, season, target week and the Efficiency file state.
+            const assets = method === 'pbp' ? `${pbpSeasonKey(season)}|${pbpSeasonData(season) ? 'loaded' : ''}|${pbpState.manifestError}|${pbpState.seasonErrors.get(pbpSeasonKey(season)) || ''}` : '';
+            if (forecastCache?.data === appState.gamesData && forecastCache.season === season && forecastCache.week === week && forecastCache.method === method && forecastCache.assets === assets) return forecastCache;
+            if (method === 'pbp') {
+                forecastCache = {...pbpForecast(season, week), data: appState.gamesData, season, week, method, assets};
+                return forecastCache;
+            }
             const games = filterGames(appState.gamesData, season, 1, week - 1);
-            const forecast = {data: appState.gamesData, season, week, throughWeek: Math.max(0, ...games.map(game => game.week)), results: null, error: ''};
+            const forecast = {data: appState.gamesData, season, week, method, assets, throughWeek: Math.max(0, ...games.map(game => game.week)), results: null, error: ''};
             try {
                 if (games.length < NUM_TEAMS) throw new Error('Not enough earlier games to calculate predictions.');
                 const {X, y, validGames} = buildDesignMatrix(games);
@@ -1916,6 +2415,21 @@
                 forecast.results = calculatePowerRatings(performOLSRegression(X, y), games);
             } catch (error) { forecast.error = error.message; }
             forecastCache = forecast;
+            return forecast;
+        }
+        // Target week N always uses the snapshot through Week N-1, whatever the standings show.
+        function pbpForecast(season, week) {
+            const throughWeek = week - 1;
+            const forecast = {throughWeek, results: null, error: '', loading: false};
+            const entry = pbpSeasonEntry(season);
+            if (week > 18) forecast.error = 'Efficiency predictions cover regular-season weeks only.';
+            else if (entry?.weeks.length && throughWeek < pbpFirstCutoff(season)) forecast.error = `${season} Efficiency predictions start in ${WEEK_LABELS[pbpFirstCutoff(season) + 1]}, after ratings through ${WEEK_LABELS[pbpFirstCutoff(season)]}.`;
+            else if (entry && entry.latestWeek && throughWeek > entry.latestWeek) forecast.error = `${WEEK_LABELS[week]} needs ratings through ${WEEK_LABELS[throughWeek]}, but Efficiency data currently ends at ${WEEK_LABELS[entry.latestWeek]}.`;
+            else {
+                const outcome = pbpResultsFor(season, throughWeek);
+                if (outcome.results) forecast.results = outcome.results;
+                else Object.assign(forecast, {error: outcome.error, loading: Boolean(outcome.loading)});
+            }
             return forecast;
         }
         function schedulePrediction(game, forecast) {
@@ -1949,9 +2463,18 @@
             const upcoming = games.filter(game => game.week === week && game.home_score === null && game.away_score === null);
             if (!upcoming.length) { context.textContent = 'No unplayed games remaining in this week.'; return; }
             const forecast = weeklyForecast(season, week);
-            context.textContent = forecast.results
-                ? `Using ${season} ratings through ${WEEK_LABELS[forecast.throughWeek]}, starting at Week 1. Selected-week results are excluded. Select a game to compare teams using these ratings.`
-                : `Predictions unavailable: ${forecast.error}`;
+            const label = METHOD_LABELS[forecast.method];
+            if (forecast.loading) {
+                ensurePbpSeason(season).then(() => {
+                    const sameView = appState.method === forecast.method && Number(elements.seasonSelect.value) === season && location.hash === '#matchup';
+                    if (sameView && Number(document.getElementById('schedule-week').value) === week) renderWeeklySchedule();
+                });
+            }
+            context.textContent = forecast.loading
+                ? 'Loading Efficiency predictions.'
+                : forecast.results
+                    ? `Using ${season} ${label} ratings through ${WEEK_LABELS[forecast.throughWeek]}, starting at Week 1. Selected-week results are excluded. Select a game to compare teams using these ratings.`
+                    : `${label} predictions unavailable: ${forecast.error}`;
             if (!appState.completeSchedule) context.textContent += ' The imported schedule may be incomplete.';
             for (const game of upcoming.sort((a,b) => a.gameday.localeCompare(b.gameday))) {
                 const prediction = schedulePrediction(game, forecast);
@@ -2013,10 +2536,13 @@
                 select.addEventListener('change', () => { updateMatchup(); savePreferences(); });
             }
             document.getElementById('matchup-b').selectedIndex = 1;
+            elements.methodSelect.replaceChildren(...Object.entries(METHOD_MENU_LABELS).map(([value, label]) => new Option(label, value)));
+            elements.methodSelect.addEventListener('change', handleMethodChange);
             document.getElementById('matchup-venue').addEventListener('change', () => { updateMatchup(); savePreferences(); });
             document.getElementById('import-data').onclick = () => { elements.fileUpload.click(); };
             const refresh = document.getElementById('refresh-data');
             refresh.onclick = async () => {
+                appState.hiddenSort = null;
                 appState.sortColumn = 'rating';
                 appState.sortDirection = 'desc';
                 updateSortHeaders();
@@ -2024,7 +2550,9 @@
                 ++calculationVersion;
                 setDataLoading(true);
                 try {
+                    const manifestReload = loadPbpManifest(true);
                     const games = await loadGamesData();
+                    await manifestReload;
                     appState.gamesData = games;
                     appState.dataLoaded = true;
                     const selected = elements.seasonSelect.value;
@@ -2055,7 +2583,13 @@
             }
             document.getElementById('schedule-week').addEventListener('change', renderWeeklySchedule);
             const prefs = readStored('preferences');
+            // Preferences from earlier versions have no method: use Point Differential.
+            appState.method = prefs?.method === 'pbp' ? 'pbp' : 'pd';
+            if (appState.method === 'pbp' && prefs.pdStart && prefs.pdEnd) appState.pdRange = {season: prefs.pdSeason ?? prefs.season, start: prefs.pdStart, end: prefs.pdEnd, pbpEnd: prefs.pdPbpEnd ?? prefs.end};
+            applyMethodPresentation();
+            const manifestReady = loadPbpManifest();
             await initializeApp();
+            if (appState.method === 'pbp') await manifestReady;
             if (prefs) {
                 for (const [id,value] of [['matchup-a',prefs.teamA],['matchup-b',prefs.teamB],['matchup-venue',prefs.venue]]) {
                     const select = document.getElementById(id);
@@ -2073,7 +2607,12 @@
             const saved = readStored('ratings');
             const expectedTeams = new Set(filterGames(appState.gamesData, Number(elements.seasonSelect.value), Number(elements.startWeekSelect.value), Number(elements.endWeekSelect.value))
                 .flatMap(game => [normalizeTeamAbbr(game.home_team), normalizeTeamAbbr(game.away_team)]).filter(Boolean));
-            if (appState.dataLoaded && saved && saved.version === 2 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === expectedTeams.size && new Set(saved.results.ratings.map(t => t.team)).size === expectedTeams.size && saved.results.ratings.every(t => expectedTeams.has(t.team) && t.teamName === teamNameForSeason(t.team, Number(elements.seasonSelect.value)) && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
+            const pbpSaved = appState.method === 'pbp';
+            const savedMethodMatches = saved && saved.method === appState.method
+                && (pbpSaved ? saved.pbpBuild && saved.pbpBuild === pbpSeasonEntry(Number(elements.seasonSelect.value))?.build && saved.start === '1'
+                    && saved.results?.ratings?.every(t => Number.isFinite(t.offense) && Number.isFinite(t.defense) && Number.isInteger(t.rank))
+                    : !saved.pbpBuild);
+            if (appState.dataLoaded && saved && saved.version === 3 && savedMethodMatches && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === expectedTeams.size && new Set(saved.results.ratings.map(t => t.team)).size === expectedTeams.size && saved.results.ratings.every(t => expectedTeams.has(t.team) && t.teamName === teamNameForSeason(t.team, Number(elements.seasonSelect.value)) && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
                 renderResultsTable(saved.results, saved.gamesCount);
                 hideStatus();
             } else if (appState.dataLoaded) {
@@ -2198,7 +2737,8 @@
             return appState.gamesData.filter(g => g.season === Number(elements.seasonSelect.value)).reduce((week,g) => Math.max(week,g.week), 0);
         }
         function setLatestWeek() {
-            elements.endWeekSelect.value = String(latestSeasonWeek());
+            const pbpLatest = appState.method === 'pbp' ? pbpSeasonEntry(Number(elements.seasonSelect.value))?.latestWeek : null;
+            elements.endWeekSelect.value = String(pbpLatest || latestSeasonWeek());
             if (Number(elements.startWeekSelect.value) > Number(elements.endWeekSelect.value)) elements.startWeekSelect.value = '1';
             updateWeekAvailability();
         }
@@ -2234,18 +2774,22 @@
                 const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; head.append(th);
             }
             const body = table.createTBody();
+            const pbp = data.every(t => Number.isFinite(t.offense));
             const metrics = [
-                ['Rank', t => appState.currentRatings.filter(other => other.rating > t.rating).length + 1],
+                ['Rank', t => teamRank(t)],
                 ['Rating', t => signedValue(t.rating)],
+                ...(pbp ? [['Offense', t => signedValue(pbpShownParts(t).offense)], ['Defense', t => signedValue(pbpShownParts(t).defense)]] : []),
                 ['Record (W–L–T)', t => `${t.wins}–${t.losses}–${t.ties}`],
                 ['PF', t => t.pointsScored],
                 ['PA', t => t.pointsAllowed],
                 ['DIFF', t => signedValue(t.avgPointDiff)],
-                ['SOS', t => signedValue(t.sos)]
+                ...(pbp ? [] : [['SOS', t => signedValue(t.sos)]])
             ];
             const metricDescriptions = {
                 Rank: 'Rank by power rating, with the highest-rated team first',
-                Rating: 'Estimated points above or below an average team on a neutral field',
+                Rating: RATING_DESCRIPTIONS[pbp ? 'pbp' : 'pd'],
+                Offense: 'Offense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted offensive success per play. Offense + Defense = Rating. Positive is better.',
+                Defense: 'Defense part of the Efficiency rating, in points above (+) or below (−) an average team, from opponent-adjusted success per play allowed. Offense + Defense = Rating. Positive is better.',
                 'Record (W–L–T)': 'Wins, losses, and ties over the selected week range',
                 SOS: 'Strength of schedule adjustment: Rating minus average point differential over the selected week range',
                 PF: 'Points for: total points scored in completed games over the selected week range',
@@ -2273,10 +2817,14 @@
                 const team = appState.currentRatings.find(t => t.team === abbr);
                 if (!team) continue;
                 const row = document.createElement('tr');
-                const rank = appState.currentRatings.filter(t => t.rating > team.rating).length + 1;
                 const signed = signedValue;
-                for (const value of [rank, team.teamName, signed(team.rating), team.wins, team.losses, team.ties, team.pointsScored, team.pointsAllowed, signed(team.avgPointDiff), signed(team.sos)]) {
-                    const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell);
+                const pbp = Number.isFinite(team.offense);
+                // Cells match the static header; method-specific cells are hidden by CSS.
+                for (const [value, className] of [[teamRank(team)], [team.teamName], [signed(team.rating)],
+                    [pbp ? signed(pbpShownParts(team).offense) : '', 'pbp-only'], [pbp ? signed(pbpShownParts(team).defense) : '', 'pbp-only'],
+                    [team.wins], [team.losses], [team.ties], [team.pointsScored], [team.pointsAllowed], [signed(team.avgPointDiff)],
+                    [Number.isFinite(team.sos) ? signed(team.sos) : '', 'pd-only']]) {
+                    const cell = document.createElement('td'); cell.textContent = value; if (className) cell.className = className; row.appendChild(cell);
                 }
                 body.appendChild(row);
             }

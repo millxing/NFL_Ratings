@@ -1,8 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const vm = require('node:vm');
-const html = fs.readFileSync(require('node:path').join(__dirname, '../NFLPowerRatings.html'), 'utf8');
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const {harness: baseHarness, html} = require('./harness.cjs');
 const teams = ['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAX','KC','LAC','LAR','LV','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SEA','SF','TB','TEN','WAS'];
 const header = 'game_id,season,week,gameday,home_team,away_team,home_score,away_score,location';
 const lines = [header];
@@ -18,60 +16,7 @@ for (let week = 1; week <= 10; week++) {
 lines.push('2026_1_0,2026,1,2099-01-01,ARI,ATL,,,Home');
 const csv = lines.join('\n');
 
-function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
-    const network = {fail,csvText};
-    class Node {
-        constructor(tag = '') { this.tag = tag; this.options = []; this.children = []; this.listeners = {}; this.attributes = {}; this.style = {}; this.textContent = ''; this.className = ''; this._value = ''; this.disabled = false; }
-        get value() { return this.tag === 'select' ? (this.options.find(o => o.value === this._value)?.value ?? this.options[0]?.value ?? '') : this._value; }
-        set value(v) { this._value = String(v); }
-        set selectedIndex(i) { this.value = this.options[i]?.value ?? ''; }
-        set innerHTML(value) { this.children = []; this.options = []; }
-        appendChild(child) { this.children.push(child); if (this.tag === 'select') { this.options.push(child); if (child.selected) this.value = child.value; } return child; }
-        add(option) { this.appendChild(option); }
-        append(...children) { children.forEach(child => this.appendChild(child)); }
-        replaceChildren(...children) { this.children = []; this.options = []; this.append(...children); }
-        scrollIntoView() {}
-        addEventListener(type, fn) { (this.listeners[type] ??= []).push(fn); }
-        async dispatch(type) { await Promise.all((this.listeners[type] ?? []).map(fn => fn({target:this}))); }
-        async change(value) { this.value = value; await this.dispatch('change'); }
-        setAttribute(key,value) { this.attributes[key] = String(value); }
-        getAttribute(key) { return this.attributes[key]; }
-        removeAttribute(key) { delete this.attributes[key]; }
-        get classList() { const node = this; return {add(...names) { node.className = [...new Set([...node.className.split(' ').filter(Boolean),...names])].join(' '); }, remove(...names) { node.className = node.className.split(' ').filter(v => !names.includes(v)).join(' '); }}; }
-    }
-    const nodes = new Map();
-    const selects = ['season-select','start-week-select','end-week-select','matchup-a','matchup-b','matchup-venue','schedule-week'];
-    const node = id => { if (!nodes.has(id)) nodes.set(id,new Node(selects.includes(id) ? 'select' : '')); return nodes.get(id); };
-    const options = ['neutral','a','b'];
-    options.forEach(value => { const option = new Node(); option.value = value; node('matchup-venue').add(option); });
-    const context = vm.createContext({
-        document: { getElementById: node, addEventListener() {}, createElement: tag => new Node(tag), querySelector: node, querySelectorAll: () => [] },
-        window: {addEventListener() {}}, location: {hash:''},
-        Option: function(text,value) { this.textContent = text; this.value = String(value); },
-        localStorage: {getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
-        fetch: async () => { if (network.fail) throw new Error('offline'); return {ok:true,text:async()=>network.csvText}; },
-        Date: class extends Date { constructor(...args) { super(...(args.length ? args : ['2025-11-07T12:00:00Z'])); } },
-        AbortSignal, setTimeout, console: {log(){},warn(){},error(){}}, renders: [], solverCalls: 0,
-    });
-    vm.runInContext(script,context);
-    // Exercise real loading, parsing, filter handlers, storage, availability and regression.
-    // Rendering layout and browser scrolling are outside this unit harness.
-    vm.runInContext(`
-        const actualSolver = performOLSRegression;
-        performOLSRegression = (...args) => { solverCalls++; return actualSolver(...args); };
-        initializeFloatingHeader = () => {};
-        initializeColumnTooltips = () => {};
-        syncFloatingHeader = () => {};
-        renderResultsTable = (results, gamesCount) => {
-            appState.currentRatings = results.ratings;
-            appState.currentHFA = results.homeFieldAdvantage;
-            renders.push({season:elements.seasonSelect.value,start:elements.startWeekSelect.value,end:elements.endWeekSelect.value,gamesCount,results});
-            elements.resultsSection.classList.add('results-section--visible');
-            writeStored('ratings', {version:2,dataKey:ratingsDataKey(),season:elements.seasonSelect.value,start:elements.startWeekSelect.value,end:elements.endWeekSelect.value,results,gamesCount});
-        };
-    `,context);
-    return {context,node,storage,network,run:code=>vm.runInContext(code,context)};
-}
+const harness = (options = {}) => baseHarness({csvText: csv, ...options});
 
 (async () => {
     const historicalCSV = fs.readFileSync(require('node:path').join(__dirname, 'fixtures/games-2001.csv'), 'utf8');
@@ -356,7 +301,7 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
     assert.equal(weekly.context.renders.at(-1).gamesCount,129);
     weekly.run('appState.schedule = appState.schedule.map(game => game.week === 1 ? {...game, home_score:null, away_score:null} : game)');
     await weekly.node('schedule-week').change('1');
-    assert.match(weekly.node('schedule-context').textContent,/Predictions unavailable: Not enough earlier games/);
+    assert.match(weekly.node('schedule-context').textContent,/Point Differential predictions unavailable: Not enough earlier games/);
     assert.ok(weekly.node('weekly-games').children.every(button => button.disabled));
     await weekly.node('schedule-week').change('10');
     assert.equal(weekly.node('weekly-games').children.length,16,'Upcoming weeks remain selectable without scores');
