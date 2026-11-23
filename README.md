@@ -31,8 +31,8 @@ Use **Rating method** beside Season to select a method. The menu shows the full 
 
 Efficiency rules (the files and code still use the short name `pbp`):
 
-- Switching methods keeps the season, the weeks and the sort, so you can compare the two methods directly. Efficiency changes only what it cannot show: Start Week becomes Week 1, and an End Week without Efficiency ratings moves to the nearest published week. Screen readers announce what changed. When you switch back, those forced changes are undone. If you changed End Week while in Efficiency, the new End Week stays.
-- A sort on a column that the other method does not have (SOS, or Offense and Defense) uses Rating order in that method and returns when you switch back.
+- The page always opens on the newest season with results, from Week 1 to the latest week (a partial week counts). It remembers the rating method and the matchup teams.
+- Switching methods keeps the season and the weeks, so you can compare the two methods directly. The table sorts by Rating again. Efficiency changes only what it cannot show: Start Week becomes Week 1, and an End Week without Efficiency ratings moves to the nearest published week. Screen readers announce what changed. When you switch back, those forced changes are undone. If you changed End Week while in Efficiency, the new End Week stays.
 - End Week offers only published weeks.
 - The first published week is the first week where the Point Differential fit (home-field advantage and the point scale) exists: Week 3 in most seasons, Week 2 in five. Ratings before Week 6 rest on few games; treat them as rough.
 - The latest week can be partial, for example Sunday's games before Monday night. The End Week menu shows "Partial", the same label as Point Differential.

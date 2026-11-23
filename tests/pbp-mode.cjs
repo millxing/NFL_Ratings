@@ -92,8 +92,7 @@ function assertSnapshotResults(h, snap, season) {
     // Switch to Efficiency: Start Week fixed at 1; End Week limited to published cutoffs.
     await h.node('method-select').change('pbp');
     assert.equal(h.run('appState.method'), 'pbp');
-    assert.equal(h.run('appState.sortColumn'), 'rating', 'Hidden SOS sorting shows Rating order for now');
-    assert.equal(h.run('appState.hiddenSort.column'), 'sos', 'The SOS sort is remembered');
+    assert.deepEqual([h.run('appState.sortColumn'), h.run('appState.sortDirection')], ['rating', 'desc'], 'A method change sorts by Rating');
     assert.match(h.node('range-adjustment').textContent, /Start Week changed from Week 2 to Week 1 for Efficiency\. Point Differential returns to Week 2–Week 8 if you switch back without changing End Week\.$/);
     assert.equal(h.node('start-week-select').value, '1');
     assert.equal(h.node('start-week-select').disabled, true);
@@ -223,27 +222,39 @@ function assertSnapshotResults(h, snap, season) {
     assert.equal(lastRender(h).results.method, 'pd');
     assert.equal(lastRender(h).gamesCount, 134);
     assert.equal(h.node('range-adjustment').textContent, '');
-    assert.equal(h.run('appState.sortColumn'), 'rating', 'Hidden Offense sorting shows Rating order');
+    assert.equal(h.run('appState.sortColumn'), 'rating', 'A method change sorts by Rating');
     await h.node('method-select').change('pbp');
     assertSnapshotResults(h, snapshot(s2026, 10), 2026);
-    assert.equal(h.run('appState.sortColumn'), 'offense', 'The Offense sort returns with Efficiency');
+    assert.equal(h.run('appState.sortColumn'), 'rating', 'A method change sorts by Rating');
     await h.node('method-select').change('pd');
     assert.deepEqual([h.node('start-week-select').value, h.node('end-week-select').value], ['2', '10']);
     await h.node('method-select').change('pbp');
     assert.equal(h.node('end-week-select').value, '10');
 
-    // Reload keeps the method and restores valid saved results without loading the season file.
+    // Reopening keeps the method but always shows Week 1 to the latest week, partial included.
+    await h.node('end-week-select').change('7');
+    const reopened = make({storage: new Map(h.storage)});
+    await reopened.context.initializeV2();
+    assert.equal(reopened.node('method-select').value, 'pbp');
+    assert.deepEqual([reopened.node('season-select').value, reopened.node('start-week-select').value, reopened.node('end-week-select').value], ['2026', '1', '11']);
+    assertSnapshotResults(reopened, w11, 2026);
+    // Saved results for that same view restore without loading the season file.
+    await h.node('end-week-select').change('11');
     const reloaded = make({storage: new Map(h.storage)});
     await reloaded.context.initializeV2();
-    assert.equal(reloaded.node('method-select').value, 'pbp');
     assert.equal(reloaded.context.renders.length, 1);
-    assertSnapshotResults(reloaded, w10, 2026);
+    assertSnapshotResults(reloaded, w11, 2026);
     assert.ok(!reloaded.context.pbpLoads.some(url => url.includes('season-2026')), 'Saved results restore without recomputation');
-    assert.equal(JSON.parse(reloaded.storage.get('nfl-ratings-v3-preferences')).pdStart, '2');
     await reloaded.node('method-select').change('pd');
-    assert.deepEqual([reloaded.node('start-week-select').value, reloaded.node('end-week-select').value], ['2', '10'], 'Point Differential range survives reload');
+    assert.deepEqual([reloaded.node('start-week-select').value, reloaded.node('end-week-select').value], ['1', '11']);
+    // A Point Differential visit with another season and range also reopens on 2026 Weeks 1-11.
+    const pdVisit = make({csvText: csvBoth, storage: new Map([['nfl-ratings-v3-preferences', JSON.stringify({season: '2001', method: 'pd', start: '3', end: '8', teamA: 'SF', teamB: 'SEA', venue: 'neutral'})]])});
+    await pdVisit.context.initializeV2();
+    assert.deepEqual([pdVisit.node('method-select').value, pdVisit.node('season-select').value, pdVisit.node('start-week-select').value, pdVisit.node('end-week-select').value], ['pd', '2026', '1', '11']);
+    assert.equal(lastRender(pdVisit).gamesCount, 162);
+    assert.deepEqual([pdVisit.node('matchup-a').value, pdVisit.node('matchup-b').value], ['SF', 'SEA'], 'Matchup teams are remembered');
 
-    // Same season, weeks and sort across methods; only forced changes are undone.
+    // Same season and weeks across methods; only forced changes are undone. The sort resets to Rating.
     const keep = make();
     await keep.context.initializeV2();
     const sortKeep = column => keep.context.handleSortClick({target: {closest: () => ({getAttribute: () => column})}});
@@ -253,11 +264,11 @@ function assertSnapshotResults(h, snap, season) {
     await keep.node('end-week-select').change('9');
     await keep.node('method-select').change('pbp');
     assert.deepEqual([keep.node('season-select').value, keep.node('start-week-select').value, keep.node('end-week-select').value], ['2026', '1', '9']);
-    assert.deepEqual([keep.run('appState.sortColumn'), keep.run('appState.sortDirection')], ['wins', 'asc'], 'A shared column keeps its sort');
+    assert.deepEqual([keep.run('appState.sortColumn'), keep.run('appState.sortDirection')], ['rating', 'desc'], 'A method change sorts by Rating');
     assert.equal(keep.node('range-adjustment').textContent, '', 'Nothing was forced, so no note');
     await keep.node('method-select').change('pd');
     assert.deepEqual([keep.node('start-week-select').value, keep.node('end-week-select').value], ['1', '9']);
-    assert.deepEqual([keep.run('appState.sortColumn'), keep.run('appState.sortDirection')], ['wins', 'asc']);
+    assert.deepEqual([keep.run('appState.sortColumn'), keep.run('appState.sortDirection')], ['rating', 'desc']);
     // An End Week without Efficiency ratings moves, says so, and comes back.
     sortKeep('sos');
     await keep.node('end-week-select').change('2');
@@ -267,7 +278,7 @@ function assertSnapshotResults(h, snap, season) {
     assert.match(keep.node('range-adjustment').textContent, /End Week changed from Week 2 to Week 3: Week 2 has no Efficiency ratings\. Point Differential returns to Week 1–Week 2/);
     await keep.node('method-select').change('pd');
     assert.deepEqual([keep.node('start-week-select').value, keep.node('end-week-select').value], ['1', '2']);
-    assert.deepEqual([keep.run('appState.sortColumn'), keep.run('appState.sortDirection')], ['sos', 'desc'], 'The SOS sort returns');
+    assert.deepEqual([keep.run('appState.sortColumn'), keep.run('appState.sortDirection')], ['rating', 'desc']);
     // A user change in Efficiency clears the note; the new End Week carries over.
     await keep.node('method-select').change('pbp');
     await keep.node('end-week-select').change('7');
@@ -280,7 +291,7 @@ function assertSnapshotResults(h, snap, season) {
     const afterRebuild = make({storage: new Map(h.storage), pbpAssets: rebuilt});
     await afterRebuild.context.initializeV2();
     assert.ok(afterRebuild.context.pbpLoads.some(url => url.includes('season-2026.js?v=new-build')));
-    assertSnapshotResults(afterRebuild, w10, 2026);
+    assertSnapshotResults(afterRebuild, w11, 2026);
 
     // Preferences and saved results from earlier versions migrate to Point Differential.
     const legacyStorage = new Map([
@@ -291,7 +302,7 @@ function assertSnapshotResults(h, snap, season) {
     await legacy.context.initializeV2();
     assert.equal(legacy.node('method-select').value, 'pd');
     assert.equal(lastRender(legacy).results.method, 'pd');
-    assert.equal(lastRender(legacy).end, '9');
+    assert.equal(lastRender(legacy).end, '11', 'Opens on the latest week, not the saved one');
     assert.ok(legacy.context.solverCalls > 0);
 
     // Missing season file: explicit unavailable state; Point Differential still works.

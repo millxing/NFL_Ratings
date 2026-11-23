@@ -87,7 +87,11 @@ const harness = (options = {}) => baseHarness({csvText: csv, ...options});
     assert.equal(historical.node('end-week-select').options.find(o=>o.value==='10').textContent,'Week 10 — No results');
     const h = harness();
     await h.context.initializeV2();
+    // The page opens on the newest season with results, not the newest schedule.
+    assert.equal(h.node('season-select').value,'2025');
+    assert.equal(h.node('end-week-select').value,'9');
     // Newest scheduled season has no results; it must clearly say so.
+    await h.node('season-select').change('2026');
     assert.match(h.node('week-availability').textContent,/2026: no results available/);
     assert.equal(h.node('end-week-select').disabled,true);
     await h.node('season-select').change('2025');

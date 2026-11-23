@@ -584,7 +584,6 @@
             method: 'pd',
             /** @type {?{start: string, end: string}} Point Differential range to restore after Efficiency */
             pdRange: null,
-            hiddenSort: null,       // A sort on a column the current method hides; restored when it returns.
         };
 
         // =========================================================================
@@ -1856,7 +1855,6 @@
 
             const column = header.getAttribute('data-sort');
 
-            appState.hiddenSort = null;
             // Toggle direction if same column, otherwise default to desc
             if (column === appState.sortColumn) {
                 appState.sortDirection = appState.sortDirection === 'asc' ? 'desc' : 'asc';
@@ -2286,21 +2284,10 @@
             const method = appState.method;
             document.documentElement?.setAttribute('data-method', method);
             elements.methodSelect.value = method;
-            const hidden = method === 'pbp' ? ['sos'] : ['offense', 'defense'];
-            // Keep the sort across methods. A column this method hides sorts by Rating
-            // for now, and its sort returns when you switch back.
-            if (appState.hiddenSort && !hidden.includes(appState.hiddenSort.column)) {
-                appState.sortColumn = appState.hiddenSort.column;
-                appState.sortDirection = appState.hiddenSort.direction;
-                appState.hiddenSort = null;
-                updateSortHeaders();
-            }
-            if (hidden.includes(appState.sortColumn)) {
-                appState.hiddenSort = {column: appState.sortColumn, direction: appState.sortDirection};
-                appState.sortColumn = 'rating';
-                appState.sortDirection = 'desc';
-                updateSortHeaders();
-            }
+            // Each method starts sorted by Rating.
+            appState.sortColumn = 'rating';
+            appState.sortDirection = 'desc';
+            updateSortHeaders();
             document.querySelectorAll('[data-rating-header]').forEach(header => setColumnDescription(header, RATING_DESCRIPTIONS[method]));
             document.getElementById('hfa-display').title = HFA_DESCRIPTIONS[method];
         }
@@ -2542,7 +2529,6 @@
             document.getElementById('import-data').onclick = () => { elements.fileUpload.click(); };
             const refresh = document.getElementById('refresh-data');
             refresh.onclick = async () => {
-                appState.hiddenSort = null;
                 appState.sortColumn = 'rating';
                 appState.sortDirection = 'desc';
                 updateSortHeaders();
@@ -2585,7 +2571,6 @@
             const prefs = readStored('preferences');
             // Preferences from earlier versions have no method: use Point Differential.
             appState.method = prefs?.method === 'pbp' ? 'pbp' : 'pd';
-            if (appState.method === 'pbp' && prefs.pdStart && prefs.pdEnd) appState.pdRange = {season: prefs.pdSeason ?? prefs.season, start: prefs.pdStart, end: prefs.pdEnd, pbpEnd: prefs.pdPbpEnd ?? prefs.end};
             applyMethodPresentation();
             const manifestReady = loadPbpManifest();
             await initializeApp();
@@ -2595,14 +2580,14 @@
                     const select = document.getElementById(id);
                     if ([...select.options].some(o => o.value === value)) select.value = value;
                 }
-                for (const [select, value] of [[elements.seasonSelect,prefs.season],[elements.startWeekSelect,prefs.start],[elements.endWeekSelect,prefs.end]]) {
-                    if ([...select.options].some(o => o.value === value)) select.value = value;
-                }
-                if (appState.dataLoaded) updateWeekAvailability();
             }
+            // Every visit opens on the current season, Week 1 to the latest week
+            // (partial weeks included). Method and matchup teams are remembered.
             if (appState.dataLoaded) {
-                if (!prefs || Number(elements.endWeekSelect.value) > latestSeasonWeek()) setLatestWeek();
-                else updateWeekAvailability();
+                const latestSeason = appState.gamesData.reduce((max, game) => Math.max(max, game.season), 0);
+                if ([...elements.seasonSelect.options].some(o => o.value === String(latestSeason))) elements.seasonSelect.value = String(latestSeason);
+                elements.startWeekSelect.value = '1';
+                setLatestWeek();
             }
             const saved = readStored('ratings');
             const expectedTeams = new Set(filterGames(appState.gamesData, Number(elements.seasonSelect.value), Number(elements.startWeekSelect.value), Number(elements.endWeekSelect.value))
