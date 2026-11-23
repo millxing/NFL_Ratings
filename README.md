@@ -47,15 +47,9 @@ Efficiency rules (the files and code still use the short name `pbp`):
 
 Current coverage: 2001–2025 regular seasons from Week 2 or 3, and 2026 Weeks 3–11 (Week 11 partial: 12 of 13 games, built November 23, 2026).
 
-The files are built in the sibling DVOA project (`/Users/robschoen/Dropbox/CC/DVOA`). Raw play-by-play data, intermediate files and the Python environment stay out of this repository. To refresh 2026 (for example on Monday morning and again after Monday night):
+The files are built by a separate, private project (the `ratings.site` producer), which holds the raw play-by-play data, the model and the Python environment. They stay out of this repository. To refresh 2026 (for example on Monday morning and again after Monday night), run that project's `./update.sh`. It downloads and verifies the latest play-by-play, rebuilds `data/pbp` and runs all tests, but does not publish.
 
-```sh
-python3 /Users/robschoen/Dropbox/NFL_PBP/code/update_pbp.py      # download and verify the latest play-by-play
-cd ../DVOA
-python3 -m ratings.site --season 2026 --out ../NFL_Ratings/data/pbp
-```
-
-The updater keeps every complete 2026 week plus the completed games of the next week. `--through` is the last week to publish; omit it to use the last verified week, partial or complete. For a historical backfill, use `--season 2001-2025`. The command writes each season file before the manifest. It stops with an error if a week is incomplete or a score differs from the schedule. If the source file is unchanged, earlier weeks must reproduce their published values. Then run the tests below and commit the changed `data/pbp` files.
+The updater keeps every complete 2026 week plus the completed games of the next week. `--through` is the last week to publish; omit it to use the last verified week, partial or complete. For a historical backfill, use `--season 2001-2025`. The command writes each season file before the manifest. It stops with an error if a week is incomplete or a score differs from the schedule. If the source file is unchanged, earlier weeks must reproduce their published values. Then commit the changed `data/pbp` files.
 
 ## Verification
 
