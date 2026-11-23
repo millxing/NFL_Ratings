@@ -405,17 +405,12 @@
         // =========================================================================
 
         /**
-         * Primary URL for NFL games CSV data.
-         * habitatring.com hosts nflverse-compatible game data with CORS support.
+         * NFL games CSV: Lee Sharpe's nflverse schedule and results (nflverse/nfldata on GitHub).
+         * The same file is at nflgamedata.com/games.csv, but that site does not allow browser
+         * downloads from other sites (no CORS header). The old habitatring.com address no longer works.
          * @constant {string}
          */
-        const CSV_URL_PRIMARY = 'https://www.habitatring.com/games.csv';
-
-        /**
-         * Fallback URL - Lee Sharpe's nfldata mirror.
-         * @constant {string}
-         */
-        const CSV_URL_FALLBACK = 'https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv';
+        const CSV_URL = 'https://raw.githubusercontent.com/nflverse/nfldata/master/data/games.csv';
 
         /**
          * NFL team abbreviations mapped to matrix column indices.
@@ -1159,13 +1154,13 @@
 
         /**
          * Fetches and parses NFL games data from CSV.
-         * Tries primary URL first, then fallback.
+         * If the download fails, uses the copy saved in this browser.
          * 
          * @returns {Promise<Array<Object>>} Parsed game records
          * @throws {Error} If all fetch attempts fail
          */
         async function loadGamesData() {
-            const urlsToTry = [CSV_URL_PRIMARY, CSV_URL_FALLBACK];
+            const urlsToTry = [CSV_URL];
             let lastError = null;
 
             for (let i = 0; i < urlsToTry.length; i += 1) {
@@ -2156,7 +2151,8 @@
         function describeData(games, source, savedAt, cached) {
             const checked = new Date(savedAt).toLocaleString([], {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
             document.getElementById('data-freshness').textContent = `${cached ? 'Cached data · Last successful check' : 'Data checked'} ${checked}`;
-            const sourceLabel = source === 'primary source' ? 'habitatring.com/games.csv' : source === 'fallback source' ? 'nflverse/nfldata on GitHub (fallback)' : source;
+            // 'fallback source' is the name saved by earlier versions for the same GitHub file.
+            const sourceLabel = ['primary source', 'fallback source'].includes(source) ? 'nflverse/nfldata on GitHub' : source;
             document.getElementById('data-source').textContent = `${sourceLabel} · ${games.length.toLocaleString()} recorded games. ${cached ? 'Network unavailable; using saved data. ' : ''}Completeness compares recorded results with the source schedule, not a live game feed. ${appState.completeSchedule ? '' : 'The full schedule is not verified for this file; week completeness is unknown. '}Data checked is when this app retrieved the file, not when results were published.`;
         }
         function retainSchedule(csv, source) {
