@@ -22,6 +22,10 @@ Below the matchup calculator, weekly schedule predictions show unplayed games on
 
 ## Verification
 
+The app includes seasons from 2001 onward, including imported and cached data. Playoff rounds use consistent labels across seasons: Wild Card, Divisional, Conference, and Super Bowl.
+
+Historical regression tests use completed 2001 games from [nflverse/nfldata](https://github.com/nflverse/nfldata/blob/master/data/games.csv), stored in `tests/fixtures/games-2001.csv`. They verify 248 regular-season games, 11 playoff games, all 31 teams' records and point totals against [independent standings](https://www.profootballarchives.com/2001nfl.html), and playoff-round mapping. The model fits and mean-centers only teams present in the selected games, so 2001 produces 31 ratings and excludes Houston.
+
 ```sh
 node tests/ratings-model.cjs
 node tests/startup.cjs

@@ -24,7 +24,47 @@ close(changed[0],baseline[0]); // Neutral outcomes cannot move first-stage HFA.
 assert.ok(Math.abs(changed[1]-baseline[1])>0.01); // But must move team ratings.
 assert.throws(()=>fit(Array(40).fill(neutral)),/non-neutral games/);
 assert.throws(()=>fit(Array(40).fill(games[0])),/cannot identify/);
-console.log('PASS: known coefficients, zero neutral HFA, neutral outcome isolation, team rating response, insufficient data and singular schedule guards.');
+assert.throws(()=>fit(games.filter(game => (teams.indexOf(game.home_team) < 16) === (teams.indexOf(game.away_team) < 16))),/cannot identify/);
+// Before Houston joined, the league had 31 teams. Exercise real historical games.
+const historicalGames = parseCSV(fs.readFileSync(path.join(__dirname, 'fixtures/games-2001.csv'), 'utf8'));
+assert.equal(historicalGames.length, 259);
+assert.equal(new Set(historicalGames.map(game => `${game.gameday}:${game.home_team}:${game.away_team}`)).size, 259);
+const regularSeason = historicalGames.filter(game => game.week <= 17);
+assert.equal(regularSeason.length, 248);
+for (const [week, count] of [[18, 0], [19, 4], [20, 4], [21, 2], [22, 1]]) {
+    assert.equal(historicalGames.filter(game => game.week === week).length, count);
+}
+const standings = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/standings-2001.json'), 'utf8'));
+for (const team of context.calculatePowerRatings(fit(regularSeason), regularSeason).ratings) {
+    assert.deepEqual(standings.fields.map(field => team[field]), standings.teams[team.team], `${team.team} matches independent 2001 standings`);
+    assert.equal(team.wins + team.losses + team.ties, 16);
+}
+const superBowl = historicalGames.find(game => game.week === 22);
+assert.equal(superBowl.home_team, 'NE');
+assert.equal(superBowl.away_team, 'STL');
+assert.equal(superBowl.home_score, 20);
+assert.equal(superBowl.away_score, 17);
+assert.equal(superBowl.location, 'Neutral');
+for (const season of [2001]) {
+    for (const endWeek of [17, 19, 20, 21, 22]) {
+        const selected = historicalGames.filter(game => game.season === season && game.week <= endWeek);
+        const result = context.calculatePowerRatings(fit(selected), selected);
+        assert.equal(result.ratings.length, 31);
+        assert.ok(!result.ratings.some(team => team.team === 'HOU'));
+        assert.ok(result.ratings.every(team => Number.isFinite(team.rating)));
+        close(result.ratings.reduce((sum, team) => sum + team.rating, 0), 0);
+        assert.ok(Number.isFinite(result.homeFieldAdvantage));
+        assert.equal(result.ratings.reduce((sum, team) => sum + team.wins + team.ties / 2, 0), selected.length);
+    }
+}
+// The reference team can also be absent; preserve known relative strengths.
+const withoutReference = games.filter(game => game.home_team !== 'WAS' && game.away_team !== 'WAS');
+const smaller = context.calculatePowerRatings(fit(withoutReference), withoutReference);
+assert.equal(smaller.ratings.length, 31);
+assert.ok(!smaller.ratings.some(team => team.team === 'WAS'));
+close(smaller.homeFieldAdvantage, 3);
+for (const team of smaller.ratings) close(team.rating, teams.indexOf(team.team) - 15);
+console.log('PASS: known coefficients, neutral HFA isolation, 2001 regular-season/playoff ratings, absent reference team, insufficient data and disconnected schedule guards.');
 if(process.argv[2]) {
  const sample=parseCSV(fs.readFileSync(process.argv[2],'utf8')).filter(g=>g.season===2026 && g.week<=7);
  const result=fit(sample);

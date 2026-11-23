@@ -480,6 +480,7 @@
          * @constant {number}
          */
         const NUM_TEAMS = 32;
+        const FIRST_SEASON = 2001;
 
         /**
          * Total number of columns in design matrix (teams + HFA constant).
@@ -869,24 +870,33 @@
          * Two-stage least squares fitting (not instrumental-variable 2SLS).
          * Fit HFA and team effects on non-neutral games only, then hold HFA
          * fixed while fitting team effects to every game's adjusted margin.
-         * Omit the last team coefficient to identify the model; ratings are
-         * mean-centered later. Do not patch singular matrices with tiny pivots.
+         * Fit only teams present in the games, omitting the last active team
+         * to identify the model. Ratings are mean-centered later. Do not patch
+         * singular matrices with tiny pivots.
          */
         function performOLSRegression(X, y) {
+            const activeColumns = Array.from({length: NUM_TEAMS}, (_, i) => i + 1)
+                .filter(column => X.some(row => row[column] !== 0));
+            const fittedColumns = activeColumns.slice(0, -1);
             const homeRows = X.map((row, i) => i).filter(i => X[i][0] === 1);
-            if (homeRows.length < NUM_TEAMS) {
+            if (activeColumns.length < 2 || homeRows.length < activeColumns.length) {
                 throw new Error('Not enough non-neutral games to estimate home-field advantage. Select a wider week range.');
             }
             const firstStage = solveLeastSquares(
-                homeRows.map(i => X[i].slice(0, -1)),
+                homeRows.map(i => [X[i][0], ...fittedColumns.map(column => X[i][column])]),
                 homeRows.map(i => y[i]),
             );
             const homeFieldAdvantage = firstStage[0];
             const teamRatings = solveLeastSquares(
-                X.map(row => row.slice(1, -1)),
+                X.map(row => fittedColumns.map(column => row[column])),
                 y.map((margin, i) => margin - X[i][0] * homeFieldAdvantage),
             );
-            return [homeFieldAdvantage, ...teamRatings, 0];
+            // Keep global team indices; null marks a team with no games.
+            const beta = Array(NUM_PREDICTORS).fill(null);
+            beta[0] = homeFieldAdvantage;
+            fittedColumns.forEach((column, i) => { beta[column] = teamRatings[i]; });
+            beta[activeColumns.at(-1)] = 0;
+            return beta;
         }
 
         function solveLeastSquares(X, y) {
@@ -1050,11 +1060,13 @@
             // Extract home-field advantage (first coefficient)
             const homeFieldAdvantage = beta[0];
 
-            // Extract team coefficients (indices 1-32)
-            const teamBetas = beta.slice(1);
+            // Exclude absent teams from both centering and displayed results.
+            const teamBetas = beta.slice(1)
+                .map((rawRating, index) => ({rawRating, team: INDEX_TEAM_MAP[index + 1]}))
+                .filter(({rawRating}) => Number.isFinite(rawRating));
 
             // Calculate mean of team betas for centering
-            const meanBeta = teamBetas.reduce((sum, val) => sum + val, 0) / teamBetas.length;
+            const meanBeta = teamBetas.reduce((sum, {rawRating}) => sum + rawRating, 0) / teamBetas.length;
 
             // Calculate team records
             const teamRecords = calculateTeamRecords(games);
@@ -1063,8 +1075,7 @@
             const decomposition = calculateRatingDecomposition(games);
 
             // Mean-center the ratings and pair with team names and records
-            const ratings = teamBetas.map((rawRating, index) => {
-                const teamAbbr = INDEX_TEAM_MAP[index + 1];
+            const ratings = teamBetas.map(({rawRating, team: teamAbbr}) => {
                 const record = teamRecords[teamAbbr];
                 const decompStats = decomposition[teamAbbr];
                 const rating = rawRating - meanBeta;
@@ -1211,6 +1222,7 @@
             // Get indices for required columns
             const indices = {
                 gameId: columnMap.game_id,
+                gameType: columnMap.game_type,
                 season: columnMap.season,
                 week: columnMap.week,
                 homeTeam: columnMap.home_team,
@@ -1243,8 +1255,12 @@
                 const awayScoreRaw = values[indices.awayScore];
 
                 const season = Number(values[indices.season]);
-                const week = Number(values[indices.week]);
-                if (!Number.isInteger(season) || season < 1900 || !Number.isInteger(week) || week < 1 || week > 22) continue;
+                const sourceWeek = Number(values[indices.week]);
+                if (!Number.isInteger(season) || season < FIRST_SEASON || !Number.isInteger(sourceWeek) || sourceWeek < 1 || sourceWeek > 22) continue;
+                // Older seasons number playoff weeks differently. Use the round
+                // to align all seasons with the app's fixed playoff labels.
+                const gameType = String(values[indices.gameType] || '').trim().toUpperCase();
+                const week = ({WC: 19, DIV: 20, CON: 21, SB: 22})[gameType] || sourceWeek;
                 const gameday = indices.gameday !== undefined ? values[indices.gameday] : '';
                 const future = /^\d{4}-\d{2}-\d{2}$/.test(gameday) && gameday > new Date().toISOString().slice(0, 10);
                 const hasResult = !future && isValidScore(homeScoreRaw) && isValidScore(awayScoreRaw);
@@ -2024,7 +2040,9 @@
                 else updateWeekAvailability();
             }
             const saved = readStored('ratings');
-            if (appState.dataLoaded && saved && saved.version === 2 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === NUM_TEAMS && saved.results.ratings.every(t => TEAM_NAMES[t.team] && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
+            const expectedTeams = new Set(filterGames(appState.gamesData, Number(elements.seasonSelect.value), Number(elements.startWeekSelect.value), Number(elements.endWeekSelect.value))
+                .flatMap(game => [normalizeTeamAbbr(game.home_team), normalizeTeamAbbr(game.away_team)]).filter(Boolean));
+            if (appState.dataLoaded && saved && saved.version === 2 && saved.dataKey === ratingsDataKey() && saved.season === elements.seasonSelect.value && saved.start === elements.startWeekSelect.value && saved.end === elements.endWeekSelect.value && Array.isArray(saved.results?.ratings) && saved.results.ratings.length === expectedTeams.size && new Set(saved.results.ratings.map(t => t.team)).size === expectedTeams.size && saved.results.ratings.every(t => expectedTeams.has(t.team) && Number.isFinite(t.rating) && Number.isFinite(t.pointsScored) && Number.isFinite(t.pointsAllowed)) && Number.isFinite(saved.results.homeFieldAdvantage)) {
                 renderResultsTable(saved.results, saved.gamesCount);
                 hideStatus();
             } else if (appState.dataLoaded) {

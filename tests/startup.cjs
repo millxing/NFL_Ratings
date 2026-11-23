@@ -74,6 +74,33 @@ function harness({ fail = false, storage = new Map(), csvText = csv } = {}) {
 }
 
 (async () => {
+    const historicalCSV = fs.readFileSync(require('node:path').join(__dirname, 'fixtures/games-2001.csv'), 'utf8');
+    const earlySeasons = harness({csvText:historicalCSV});
+    await earlySeasons.context.initializeV2();
+    assert.equal(earlySeasons.node('end-week-select').value, '22');
+    assert.equal(earlySeasons.node('end-week-select').options.find(option => option.value === '18').disabled, true);
+    const excludedCSV = historicalCSV + '\n2000,REG,1,2000-09-03,NE,STL,20,17,Home\n1999,REG,1,1999-09-12,NE,STL,20,17,Home';
+    for (const includeUnplayed of [false, true]) {
+        assert.ok(earlySeasons.context.parseCSV(excludedCSV, includeUnplayed).every(game => game.season >= 2001));
+    }
+    const cutoff = harness({csvText:excludedCSV});
+    await cutoff.context.initializeV2();
+    assert.deepEqual(Array.from(cutoff.node('season-select').options, option => option.value), ['2001']);
+    for (const season of ['2001']) {
+        await earlySeasons.node('season-select').change(season);
+        assert.equal(earlySeasons.node('status-message').textContent, '');
+        assert.equal(earlySeasons.context.renders.at(-1).season, season);
+        assert.equal(earlySeasons.context.renders.at(-1).results.ratings.length, 31);
+        assert.ok(!earlySeasons.context.renders.at(-1).results.ratings.some(team => team.team === 'HOU'));
+        const forecast = earlySeasons.context.weeklyForecast(Number(season), 21);
+        assert.equal(forecast.error, '');
+        assert.equal(forecast.results.ratings.length, 31);
+        const reloaded = harness({csvText:historicalCSV, storage:new Map(earlySeasons.storage)});
+        await reloaded.context.initializeV2();
+        assert.equal(reloaded.context.renders[0].season, season);
+        assert.equal(reloaded.context.renders[0].results.ratings.length, 31);
+        assert.equal(reloaded.context.solverCalls, 0, 'Saved 31-team ratings restore without recomputation');
+    }
     const currentCSV = lines.filter(line => !line.startsWith('2026_')).join('\n');
     const firstVisit = harness({csvText:currentCSV});
     await firstVisit.context.initializeV2();
