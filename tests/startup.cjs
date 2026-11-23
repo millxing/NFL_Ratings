@@ -290,7 +290,13 @@ const harness = (options = {}) => baseHarness({csvText: csv, ...options});
     const game = weekly.run('appState.schedule.find(game => game.week === 9)');
     const homePrediction = weekly.context.schedulePrediction({...game,location:'Home'},forecast);
     const neutralPrediction = weekly.context.schedulePrediction({...game,location:'Neutral'},forecast);
-    assert.ok(Math.abs(neutralPrediction.margin - homePrediction.margin - forecast.results.homeFieldAdvantage) < 1e-8,'Neutral sites exclude HFA');
+    assert.ok(Math.abs(neutralPrediction.margin - homePrediction.margin - weekly.context.forecastSettings(2025).forecastHfa) < 1e-8,'Neutral sites exclude the forecast HFA');
+    assert.ok(weekly.node('weekly-games').children.every(button => /^Rating gap: .*The forecast counts \d+%/.test(button.title)),'Each prediction explains the rating gap and the share');
+    // Point Differential forecasts use their own curve: share = beta*n/(n+n0), n = games in the rating.
+    const pdCurve = weekly.context.forecastSettings(2025).shrink.pointDiff;
+    const pdShare = team => { const n = team.wins + team.losses + team.ties; return pdCurve.beta * n / (n + pdCurve.n0); };
+    const [awayTeam, homeTeam] = ['away_team', 'home_team'].map(key => forecast.results.ratings.find(t => t.team === weekly.context.normalizeTeamAbbr(game[key])));
+    assert.ok(Math.abs(neutralPrediction.margin - (pdShare(awayTeam) * awayTeam.rating - pdShare(homeTeam) * homeTeam.rating)) < 1e-9, 'Point Differential forecast uses its own shrink curve');
     await weekly.node('schedule-week').change('6');
     assert.match(weekly.node('schedule-context').textContent,/No unplayed games remaining/);
     assert.equal(weekly.node('weekly-games').children.length,0);

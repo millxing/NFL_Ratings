@@ -8,7 +8,8 @@ const html = fs.readFileSync(path.join(root, 'NFLPowerRatings.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
 function realPbpAssets() {
-    const dir = path.join(root, 'data/pbp');
+    // PBP_ASSETS=<folder> tests a scratch build before it replaces data/pbp.
+    const dir = process.env.PBP_ASSETS || path.join(root, 'data/pbp');
     return Object.fromEntries(fs.readdirSync(dir).filter(name => name.endsWith('.js'))
         .map(name => [`data/pbp/${name}`, fs.readFileSync(path.join(dir, name), 'utf8')]));
 }

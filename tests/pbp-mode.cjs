@@ -27,6 +27,15 @@ const s2001 = seasonFile(2001);
 const snapshot = (data, week) => data.snapshots.find(item => item.week === week);
 const points = (snap, team) => snap.teams.find(row => row.team === team).points;
 const close = (a, b, message, tolerance = 1e-9) => assert.ok(Math.abs(a - b) < tolerance, `${message}: ${a} != ${b}`);
+// Expected forecast, computed independently of the page: each rating times its share
+// beta*n/(n+n0) for the team's games, plus the 10-season home-field advantage at a home site.
+const share = (data, games) => data.calibration.shrink.pbp.beta * games / (games + data.calibration.shrink.pbp.n0);
+const forecastOf = (data, snap, first, second, venue) => {
+    const a = snap.teams.find(row => row.team === first);
+    const b = snap.teams.find(row => row.team === second);
+    const hfa = venue === 'a' ? data.calibration.forecastHfa : venue === 'b' ? -data.calibration.forecastHfa : 0;
+    return share(data, a.games) * a.points - share(data, b.games) * b.points + hfa;
+};
 const make = (options = {}) => harness({csvText: csv2026, now, ...options});
 const lastRender = h => h.context.renders.at(-1);
 
@@ -45,7 +54,8 @@ function assertSnapshotResults(h, snap, season) {
         close(team.rating, row.points, `${row.team} points`);
         close(team.offense, row.offense, `${row.team} offense points`);
         close(team.defense, row.defense, `${row.team} defense points`);
-        close(team.offense + team.defense, team.rating, `${row.team} offense + defense = rating`, 1e-5);
+        close(team.specialTeams, row.specialTeams, `${row.team} special-teams points`);
+        close(team.offense + team.defense + team.specialTeams, team.rating, `${row.team} offense + defense + special teams = rating`, 1e-5);
         close(team.offensePct, row.offensePct, `${row.team} offense percent`);
         assert.equal(team.rank, row.rank);
         assert.equal(team.sos, null, 'No SOS decomposition in Efficiency mode');
@@ -60,22 +70,25 @@ function assertSnapshotResults(h, snap, season) {
     const h = make();
     await h.context.initializeV2();
     assert.equal(h.context.sha256Hex('abc'), crypto.createHash('sha256').update('abc').digest('hex'));
-    // Shown Offense and Defense add up to the shown rating in every published snapshot.
+    // Shown Offense, Defense and Special teams add up to the shown rating in every published snapshot.
     let checked = 0;
     for (const file of Object.keys(assets).filter(name => /season-\d+\.js$/.test(name))) {
         for (const snap of seasonFile(Number(file.match(/\d{4}/)[0])).snapshots.filter(item => item.available)) {
             for (const row of snap.teams) {
-                const team = {rating: row.points, offense: row.offense, defense: row.defense};
+                const team = {rating: row.points, offense: row.offense, defense: row.defense, specialTeams: row.specialTeams};
                 const shown = h.context.pbpShownParts(team);
-                assert.equal(Math.round((shown.offense + shown.defense) * 10) + 0, Math.round(Number(row.points.toFixed(1)) * 10) + 0, `${file} W${snap.week} ${row.team} sum`);
-                assert.ok(Math.abs(shown.offense - row.offense) < 0.1 + 1e-9 && Math.abs(shown.defense - row.defense) < 0.1 + 1e-9, `${file} W${snap.week} ${row.team} parts`);
+                assert.equal(Math.round((shown.offense + shown.defense + shown.specialTeams) * 10) + 0, Math.round(Number(row.points.toFixed(1)) * 10) + 0, `${file} W${snap.week} ${row.team} sum`);
+                for (const key of ['offense', 'defense', 'specialTeams']) assert.ok(Math.abs(shown[key] - row[key]) < 0.1 + 1e-9, `${file} W${snap.week} ${row.team} ${key}`);
                 checked++;
             }
         }
     }
     assert.ok(checked > 12000, `Checked ${checked} team rows`);
-    const sf10 = h.context.pbpShownParts({rating: 14.495697, offense: 11.161728, defense: 3.333969});
-    assert.deepEqual({...sf10}, {offense: 11.2, defense: 3.3}, 'SF Week 10: 11.2 + 3.3 = 14.5');
+    const sf10 = h.context.pbpShownParts({rating: 13.722996, offense: 11.679845, defense: 3.607442, specialTeams: -1.564291});
+    assert.deepEqual({...sf10}, {offense: 11.7, defense: 3.6, specialTeams: -1.6}, 'SF Week 10: 11.7 + 3.6 - 1.6 = 13.7');
+    // Two tenths of rounding difference: both go to different parts, each part stays within 0.1.
+    const twoTenths = h.context.pbpShownParts({rating: 0.38, offense: 0.14, defense: 0.14, specialTeams: 0.1});
+    assert.deepEqual({...twoTenths}, {offense: 0.2, defense: 0.1, specialTeams: 0.1});
     for (const snap of s2026.snapshots.filter(item => item.available)) {
         assert.equal(h.context.pbpSlateDigest(h.run('appState.gamesData'), 2026, snap.week), snap.slateDigest, `Week ${snap.week} slate`);
     }
@@ -126,7 +139,7 @@ function assertSnapshotResults(h, snap, season) {
     assert.ok(snapshot(s2026, 6).teams.some(row => row.games === 5), 'Week 6 contains teams with five games');
     await h.node('end-week-select').change('10');
 
-    // Sorting by the new columns; both are points where higher is better.
+    // Sorting by the part columns; all are points where higher is better.
     const sortBy = column => h.context.handleSortClick({target: {closest: () => ({getAttribute: () => column})}});
     sortBy('defense');
     assert.equal(h.run('appState.sortDirection'), 'desc');
@@ -134,30 +147,52 @@ function assertSnapshotResults(h, snap, season) {
     assert.ok(byDefense.every((t, i) => i === 0 || byDefense[i - 1].defense >= t.defense));
     sortBy('offense');
     assert.equal(h.run('appState.sortDirection'), 'desc');
+    sortBy('specialTeams');
+    assert.equal(h.run('appState.sortDirection'), 'desc');
+    const bySpecialTeams = h.run('sortRatings(appState.currentRatings)');
+    assert.ok(bySpecialTeams.every((t, i) => i === 0 || bySpecialTeams[i - 1].specialTeams >= t.specialTeams));
 
     // Matchup calculator: neutral subtraction, venue adjustment, identical and reversed teams.
     const w10 = snapshot(s2026, 10);
     await h.node('matchup-a').change('SF');
     await h.node('matchup-b').change('SEA');
     await h.node('matchup-venue').change('neutral');
-    const neutral = points(w10, 'SF') - points(w10, 'SEA');
+    const neutral = forecastOf(s2026, w10, 'SF', 'SEA', 'neutral');
+    assert.ok(Math.abs(neutral) < Math.abs(points(w10, 'SF') - points(w10, 'SEA')), 'The forecast counts only part of the rating gap');
     assert.equal(h.node('matchup-result').textContent, `San Francisco 49ers by ${neutral.toFixed(1)} points`);
+    assert.match(h.node('matchup-detail').textContent, /^Rating gap: SF \+\d+\.\d\. The forecast counts \d+% of /);
+    for (const venue of ['a', 'b']) {
+        await h.node('matchup-venue').change(venue);
+        const expected = forecastOf(s2026, w10, 'SF', 'SEA', venue);
+        assert.equal(h.node('matchup-result').textContent, `${expected > 0 ? 'San Francisco 49ers' : 'Seattle Seahawks'} by ${Math.abs(expected).toFixed(1)} points`);
+        assert.match(h.node('matchup-detail').textContent, new RegExp(`plus ${s2026.calibration.forecastHfa.toFixed(1)} points home field for ${venue === 'a' ? 'SF' : 'SEA'}\\.$`));
+    }
+    await h.node('matchup-venue').change('neutral');
+    assert.doesNotMatch(h.node('matchup-detail').textContent, /home field/);
+    const shrunk = (a, b, venue) => h.run(`forecastMargin(appState.currentRatings.find(t => t.team === '${a}'), appState.currentRatings.find(t => t.team === '${b}'), '${venue}', 'pbp', 2026).margin`);
+    close(shrunk('SEA', 'SF', 'neutral'), -shrunk('SF', 'SEA', 'neutral'), 'Reversed teams forecast');
+    close(shrunk('SEA', 'SF', 'b'), -shrunk('SF', 'SEA', 'a'), 'Reversed teams and venue forecast');
+    close(shrunk('SF', 'SF', 'neutral'), 0, 'Identical teams forecast');
+    close(h.run('forecastSettings(2026).forecastHfa'), s2026.calibration.forecastHfa, 'Manifest and season file agree');
     const margin = (a, b, venue) => h.run(`matchupMargin(appState.currentRatings.find(t => t.team === '${a}').rating, appState.currentRatings.find(t => t.team === '${b}').rating, '${venue}', appState.currentHFA)`);
-    close(margin('SF', 'SEA', 'neutral'), neutral, 'Neutral margin');
-    close(margin('SF', 'SEA', 'a'), neutral + w10.hfa, 'Team A home');
-    close(margin('SF', 'SEA', 'b'), neutral - w10.hfa, 'Team B home');
-    close(margin('SEA', 'SF', 'neutral'), -neutral, 'Reversed teams');
+    // matchupMargin itself: plain rating difference plus or minus the given home-field value.
+    const gap = points(w10, 'SF') - points(w10, 'SEA');
+    close(margin('SF', 'SEA', 'neutral'), gap, 'Neutral margin');
+    close(margin('SF', 'SEA', 'a'), gap + w10.hfa, 'Team A home');
+    close(margin('SF', 'SEA', 'b'), gap - w10.hfa, 'Team B home');
+    close(margin('SEA', 'SF', 'neutral'), -gap, 'Reversed teams');
     close(margin('SEA', 'SF', 'b'), -margin('SF', 'SEA', 'a'), 'Reversed teams and venue');
     close(margin('SF', 'SF', 'neutral'), 0, 'Identical teams');
     const statsRow = h.node('matchup-stats').children[0].children;
-    assert.equal(statsRow.length, 12);
-    assert.equal(statsRow[3].textContent, '+11.2');
-    assert.equal(statsRow[4].textContent, '+3.3');
-    assert.equal(statsRow[2].textContent, '+14.5');
-    assert.equal(statsRow[3].className, 'pbp-only');
-    assert.equal(statsRow[11].textContent, '', 'SOS cell is empty and hidden');
+    assert.equal(statsRow.length, 13);
+    assert.equal(statsRow[3].textContent, '+11.7');
+    assert.equal(statsRow[4].textContent, '+3.6');
+    assert.equal(statsRow[5].textContent, '-1.6');
+    assert.equal(statsRow[2].textContent, '+13.7');
+    assert.equal(statsRow[5].className, 'pbp-only');
+    assert.equal(statsRow[12].textContent, '', 'SOS cell is empty and hidden');
     const mobileLabels = h.node('mobile-matchup').children[0].children[1].children.map(row => row.children[0].textContent);
-    assert.deepEqual(mobileLabels, ['Rank', 'Rating', 'Offense', 'Defense', 'Record (W–L–T)', 'PF', 'PA', 'DIFF']);
+    assert.deepEqual(mobileLabels, ['Rank', 'Rating', 'Offense', 'Defense', 'Special teams', 'Record (W–L–T)', 'PF', 'PA', 'DIFF']);
     await h.node('matchup-b').change('SF');
     assert.equal(h.node('matchup-result').textContent, 'Choose two different teams.');
     await h.node('matchup-b').change('SEA');
@@ -176,12 +211,13 @@ function assertSnapshotResults(h, snap, season) {
         const prediction = h.context.schedulePrediction(game, forecast11);
         const away = h.context.normalizeTeamAbbr(game.away_team);
         const home = h.context.normalizeTeamAbbr(game.home_team);
-        const expected = points(w10, away) - points(w10, home) - (game.location === 'Neutral' ? 0 : w10.hfa);
+        const expected = forecastOf(s2026, w10, away, home, game.location === 'Neutral' ? 'neutral' : 'b');
         close(prediction.margin, expected, `${away} at ${home}`);
         assert.equal(buttons[i].children[2].textContent, prediction.text);
+        assert.equal(buttons[i].title, prediction.detail);
     });
     const neutralGame = h.context.schedulePrediction({away_team: 'MIN', home_team: 'SF', location: 'Neutral'}, forecast11);
-    close(neutralGame.margin, points(w10, 'MIN') - points(w10, 'SF'), 'Neutral-site prediction has no home advantage');
+    close(neutralGame.margin, forecastOf(s2026, w10, 'MIN', 'SF', 'neutral'), 'Neutral-site prediction has no home advantage');
     // Second publication boundary: Week 4 is the first forecast; Week 3 has none.
     const forecast4 = h.context.weeklyForecast(2026, 4);
     assert.equal(forecast4.throughWeek, 3);
@@ -195,7 +231,7 @@ function assertSnapshotResults(h, snap, season) {
     const game12 = h.run("appState.schedule.find(g => g.season === 2026 && g.week === 12 && g.location === 'Home')");
     const home12 = h.context.normalizeTeamAbbr(game12.home_team);
     const away12 = h.context.normalizeTeamAbbr(game12.away_team);
-    close(h.context.schedulePrediction(game12, forecast12).margin, points(w11, away12) - points(w11, home12) - w11.hfa, 'Week 12 uses Week 11');
+    close(h.context.schedulePrediction(game12, forecast12).margin, forecastOf(s2026, w11, away12, home12, 'b'), 'Week 12 uses Week 11');
     // No Week 12 snapshot: Week 13 has no projection.
     await h.node('schedule-week').change('13');
     assert.match(h.node('schedule-context').textContent, /^Efficiency predictions unavailable: Week 13 needs ratings through Week 12, but Efficiency data currently ends at Week 11\./);
@@ -323,6 +359,11 @@ function assertSnapshotResults(h, snap, season) {
     await noIndex.context.initializeV2();
     await noIndex.node('method-select').change('pbp');
     assert.match(noIndex.node('status-message').textContent, /The Efficiency data index could not be loaded/);
+    // Without the index there are no forecast settings: no unshrunk number is shown as a forecast.
+    await noIndex.node('method-select').change('pd');
+    noIndex.run('updateMatchup()');
+    assert.equal(noIndex.node('matchup-result').textContent, 'Forecast unavailable: the forecast settings could not be loaded.');
+    assert.equal(noIndex.node('matchup-detail').textContent, '');
     // Stale season file: its build differs from the index.
     const stale = make({pbpAssets: {...assets, 'data/pbp/season-2026.js': assets['data/pbp/season-2026.js'].replaceAll(s2026.build, 'older-build')}});
     await stale.context.initializeV2();
@@ -401,12 +442,13 @@ function assertSnapshotResults(h, snap, season) {
     await race.node('matchup-a').change('LAR');
     await race.node('matchup-b').change('LV');
     await race.node('matchup-venue').change('a');
-    const ramsRaiders = points(w17, 'LAR') - points(w17, 'LV') + w17.hfa;
+    const ramsRaiders = forecastOf(s2001, w17, 'LAR', 'LV', 'a');
+    assert.deepEqual(Array.from(s2001.calibration.trainingSeasons), [1999, 2000]);
     assert.equal(race.node('matchup-result').textContent, `${ramsRaiders > 0 ? 'St. Louis Rams' : 'Oakland Raiders'} by ${Math.abs(ramsRaiders).toFixed(1)} points`);
     const forecast2001 = race.context.weeklyForecast(2001, 10);
     assert.equal(forecast2001.throughWeek, 9);
     assert.equal(forecast2001.results.ratings.length, 31);
     assert.equal(race.context.schedulePrediction({away_team: 'STL', home_team: 'OAK', location: 'Home'}, forecast2001).away, 'LAR', 'Historical codes resolve to franchises');
 
-    console.log('PASS: Efficiency slate digests, offense + defense = rating, default method, fixed Week 1 start, published cutoffs, Week 3/Week 4 boundaries, partial Week 11 (scores ahead and behind), matchups and venues, N-1 weekly predictions and click-through, method switching, reload, legacy storage, missing/stale assets, mismatched imports, season-switch race, and 2001 franchises.');
+    console.log('PASS: Efficiency slate digests, offense + defense + special teams = rating, shrunk forecasts with the 10-season HFA, default method, fixed Week 1 start, published cutoffs, Week 3/Week 4 boundaries, partial Week 11 (scores ahead and behind), matchups and venues, N-1 weekly predictions and click-through, method switching, reload, legacy storage, missing/stale assets, mismatched imports, season-switch race, and 2001 franchises.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
