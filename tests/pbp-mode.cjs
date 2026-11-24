@@ -16,10 +16,15 @@ const csvBoth = `${csv2026.trim()}\n${csv2001.trim().split('\n').slice(1).map((l
     return [`2001_${i}`, season, type, week, day, home, away, homeScore, awayScore, location].join(',');
 }).join('\n')}`;
 const now = '2026-11-23T12:00:00Z';
-const assets = realPbpAssets();
-const seasonFile = year => {
+const publishedAssets = realPbpAssets();
+// The score fixture and the partial-week UI scenarios describe Monday before kickoff.
+const assets = {...publishedAssets};
+for (const name of ['manifest', 'season-2026']) {
+    assets[`data/pbp/${name}.js`] = fs.readFileSync(path.join(__dirname, `fixtures/${name}-before-monday.js`), 'utf8');
+}
+const seasonFile = (year, files = assets) => {
     let data;
-    vm.runInNewContext(assets[`data/pbp/season-${year}.js`], {registerPbpSeason: payload => { data = payload; }});
+    vm.runInNewContext(files[`data/pbp/season-${year}.js`], {registerPbpSeason: payload => { data = payload; }});
     return data;
 };
 const s2026 = seasonFile(2026);
@@ -36,7 +41,7 @@ const forecastOf = (data, snap, first, second, venue) => {
     const hfa = venue === 'a' ? data.calibration.forecastHfa : venue === 'b' ? -data.calibration.forecastHfa : 0;
     return share(data, a.games) * a.points - share(data, b.games) * b.points + hfa;
 };
-const make = (options = {}) => harness({csvText: csv2026, now, ...options});
+const make = (options = {}) => harness({csvText: csv2026, now, pbpAssets: assets, ...options});
 const lastRender = h => h.context.renders.at(-1);
 
 function assertSnapshotResults(h, snap, season) {
@@ -72,8 +77,8 @@ function assertSnapshotResults(h, snap, season) {
     assert.equal(h.context.sha256Hex('abc'), crypto.createHash('sha256').update('abc').digest('hex'));
     // Shown Offense, Defense and Special teams add up to the shown rating in every published snapshot.
     let checked = 0;
-    for (const file of Object.keys(assets).filter(name => /season-\d+\.js$/.test(name))) {
-        for (const snap of seasonFile(Number(file.match(/\d{4}/)[0])).snapshots.filter(item => item.available)) {
+    for (const file of Object.keys(publishedAssets).filter(name => /season-\d+\.js$/.test(name))) {
+        for (const snap of seasonFile(Number(file.match(/\d{4}/)[0]), publishedAssets).snapshots.filter(item => item.available)) {
             for (const row of snap.teams) {
                 const team = {rating: row.points, offense: row.offense, defense: row.defense, specialTeams: row.specialTeams};
                 const shown = h.context.pbpShownParts(team);
@@ -92,6 +97,19 @@ function assertSnapshotResults(h, snap, season) {
     for (const snap of s2026.snapshots.filter(item => item.available)) {
         assert.equal(h.context.pbpSlateDigest(h.run('appState.gamesData'), 2026, snap.week), snap.slateDigest, `Week ${snap.week} slate`);
     }
+
+    // Verify the published Week 11 snapshot against the final Monday score.
+    const finalScores = csv2026.replace('2026-11-23,WAS,CIN,,,Home', '2026-11-23,WAS,CIN,22,20,Home');
+    const full = make({csvText: finalScores, pbpAssets: publishedAssets, now: '2026-11-24T13:00:00Z'});
+    await full.context.initializeV2();
+    await full.node('method-select').change('pbp');
+    await full.node('end-week-select').change('11');
+    const completed = snapshot(seasonFile(2026, publishedAssets), 11);
+    assert.equal(completed.slateDigest, full.context.pbpSlateDigest(full.run('appState.gamesData'), 2026, 11));
+    assert.equal(completed.games, 163);
+    assert.equal(full.node('end-week-select').options.find(option => option.value === '11').textContent, 'Week 11');
+    assertSnapshotResults(full, completed, 2026);
+    assert.equal(lastRender(full).results.note, '');
 
     // Point Differential stays the initial default, with the scoreboard ahead of play-by-play.
     assert.equal(h.node('method-select').value, 'pd');
