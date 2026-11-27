@@ -2645,12 +2645,9 @@
             }
             document.getElementById('schedule-week').addEventListener('change', renderWeeklySchedule);
             const prefs = readStored('preferences');
-            // Preferences from earlier versions have no method: use Point Differential.
-            appState.method = prefs?.method === 'pbp' ? 'pbp' : 'pd';
             applyMethodPresentation();
-            const manifestReady = loadPbpManifest();
+            loadPbpManifest();
             await initializeApp();
-            if (appState.method === 'pbp') await manifestReady;
             if (prefs) {
                 for (const [id,value] of [['matchup-a',prefs.teamA],['matchup-b',prefs.teamB],['matchup-venue',prefs.venue]]) {
                     const select = document.getElementById(id);
@@ -2658,7 +2655,7 @@
                 }
             }
             // Every visit opens on the current season, Week 1 to the latest week
-            // (partial weeks included). Method and matchup teams are remembered.
+            // (partial weeks included). Matchup teams and venue are remembered.
             if (appState.dataLoaded) {
                 const latestSeason = appState.gamesData.reduce((max, game) => Math.max(max, game.season), 0);
                 if ([...elements.seasonSelect.options].some(o => o.value === String(latestSeason))) elements.seasonSelect.value = String(latestSeason);

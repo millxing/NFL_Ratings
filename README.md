@@ -33,7 +33,7 @@ Forecasts (the matchup calculator and weekly predictions) count only part of eac
 
 Efficiency rules (the files and code still use the short name `pbp`):
 
-- The page always opens on the newest season with results, from Week 1 to the latest week (a partial week counts). It remembers the rating method and the matchup teams.
+- The page always opens on the newest season with results, from Week 1 to the latest week (a partial week counts). It opens with Point Differential on every visit and remembers the matchup teams and venue.
 - Switching methods keeps the season and the weeks, so you can compare the two methods directly. The table sorts by Rating again. Efficiency changes only what it cannot show: Start Week becomes Week 1, and an End Week without Efficiency ratings moves to the nearest published week. Screen readers announce what changed. When you switch back, those forced changes are undone. If you changed End Week while in Efficiency, the new End Week stays.
 - End Week offers only published weeks.
 - The first published week is the first week where the Point Differential fit (home-field advantage) exists: Week 3 in most seasons, Week 2 in five. Ratings before Week 6 rest on few games; treat them as rough.

@@ -285,22 +285,21 @@ function assertSnapshotResults(h, snap, season) {
     await h.node('method-select').change('pbp');
     assert.equal(h.node('end-week-select').value, '10');
 
-    // Reopening keeps the method but always shows Week 1 to the latest week, partial included.
+    // A returning Efficiency user gets the latest scored week, even ahead of the Efficiency data.
     await h.node('end-week-select').change('7');
-    const reopened = make({storage: new Map(h.storage)});
+    const nextWeek = finalScores.replace('2026-11-25,LA,GB,,,Home', '2026-11-25,LA,GB,24,21,Home');
+    const reopened = make({csvText: nextWeek, now: '2026-11-27T12:00:00Z', storage: new Map(h.storage)});
     await reopened.context.initializeV2();
-    assert.equal(reopened.node('method-select').value, 'pbp');
-    assert.deepEqual([reopened.node('season-select').value, reopened.node('start-week-select').value, reopened.node('end-week-select').value], ['2026', '1', '11']);
-    assertSnapshotResults(reopened, w11, 2026);
-    // Saved results for that same view restore without loading the season file.
+    assert.deepEqual([reopened.node('method-select').value, reopened.node('season-select').value, reopened.node('start-week-select').value, reopened.node('end-week-select').value], ['pd', '2026', '1', '12']);
+    assert.equal(lastRender(reopened).results.method, 'pd');
+    assert.equal(lastRender(reopened).gamesCount, 164);
+
+    // A saved Efficiency table for the exact same range must also reopen as Point Differential.
     await h.node('end-week-select').change('11');
     const reloaded = make({storage: new Map(h.storage)});
     await reloaded.context.initializeV2();
-    assert.equal(reloaded.context.renders.length, 1);
-    assertSnapshotResults(reloaded, w11, 2026);
-    assert.ok(!reloaded.context.pbpLoads.some(url => url.includes('season-2026')), 'Saved results restore without recomputation');
-    await reloaded.node('method-select').change('pd');
-    assert.deepEqual([reloaded.node('start-week-select').value, reloaded.node('end-week-select').value], ['1', '11']);
+    assert.equal(lastRender(reloaded).results.method, 'pd');
+    assert.equal(lastRender(reloaded).end, '11');
     // A Point Differential visit with another season and range also reopens on 2026 Weeks 1-11.
     const pdVisit = make({csvText: csvBoth, storage: new Map([['nfl-ratings-v3-preferences', JSON.stringify({season: '2001', method: 'pd', start: '3', end: '8', teamA: 'SF', teamB: 'SEA', venue: 'neutral'})]])});
     await pdVisit.context.initializeV2();
@@ -344,6 +343,7 @@ function assertSnapshotResults(h, snap, season) {
         'data/pbp/season-2026.js': assets['data/pbp/season-2026.js'].replaceAll(s2026.build, 'new-build')};
     const afterRebuild = make({storage: new Map(h.storage), pbpAssets: rebuilt});
     await afterRebuild.context.initializeV2();
+    await afterRebuild.node('method-select').change('pbp');
     assert.ok(afterRebuild.context.pbpLoads.some(url => url.includes('season-2026.js?v=new-build')));
     assertSnapshotResults(afterRebuild, w11, 2026);
 
